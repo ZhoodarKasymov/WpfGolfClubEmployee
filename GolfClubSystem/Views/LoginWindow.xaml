@@ -1,0 +1,70 @@
+﻿<Window x:Class="GolfClubSystem.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:validations="clr-namespace:GolfClubSystem.Validations" 
+        xmlns:helpers="clr-namespace:GolfClubSystem.Helpers" 
+        Title="Логин" Height="700" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="White"
+        FontFamily="{DynamicResource MaterialDesignFont}">
+
+    <Grid>
+        <!-- Разделение экрана на две части -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Левая сторона с картинкой -->
+        <Border Background="#2d56e6" Grid.Column="0">
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Image Source="/Images/left_container.png" Stretch="Fill" />
+            </Grid>
+        </Border>
+
+        <!-- Правая сторона с формой -->
+        <Grid Background="White" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel Width="450" Background="White">
+                <!-- Приветствие -->
+                <TextBlock Text="Добро пожаловать!" FontSize="26" FontWeight="Bold"
+                           Foreground="Black" HorizontalAlignment="Center" Margin="0,0,0,30" />
+
+                <!-- Поле для логина -->
+                <TextBox x:Name="UsernameTextBox" Margin="0,15"
+                         Background="White"
+                         Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                         materialDesign:HintAssist.Hint="Логин">
+                    <TextBox.Text>
+                        <Binding Path="Username" UpdateSourceTrigger="PropertyChanged" ValidatesOnDataErrors="True">
+                            <Binding.ValidationRules>
+                                <validations:NotEmptyValidationRule />
+                            </Binding.ValidationRules>
+                        </Binding>
+                    </TextBox.Text>
+                </TextBox>
+                
+                <PasswordBox
+                    Background="White"
+                    x:Name="PasswordBox"
+                    Margin="0,25,0,0"
+                    VerticalContentAlignment="Bottom"
+                    materialDesign:HintAssist.Hint="Пароль"
+                    materialDesign:TextFieldAssist.HasClearButton="True"
+                    helpers:PasswordBoxHelper.BindPassword="True"
+                    helpers:PasswordBoxHelper.BoundPassword="{Binding Path=Password, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True, Mode=TwoWay}"
+                    Style="{StaticResource MaterialDesignOutlinedRevealPasswordBox}"
+                >
+                </PasswordBox>
+                
+                <!-- Кнопка Войти -->
+                <Button x:Name="LoginButton" Content="Войти"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Background="#3A60E7" Foreground="White"
+                        Height="50"
+                        Padding="10" Margin="0,20,0,0"
+                        Click="LoginButton_Click" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

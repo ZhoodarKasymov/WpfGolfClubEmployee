@@ -1,0 +1,325 @@
+﻿<UserControl x:Class="GolfClubSystem.Views.UserControlsViews.OrganizationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:vm="clr-namespace:GolfClubSystem.ViewModels"
+             HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+             Background="{DynamicResource MaterialDesignPaper}">
+
+    <UserControl.DataContext>
+        <vm:OrganizationsViewModel />
+    </UserControl.DataContext>
+
+
+    <Grid>
+        <!-- Column Definitions -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400" /> <!-- Sidebar -->
+            <ColumnDefinition Width="*" />   <!-- Main content -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <Border Grid.Column="0" Background="White" CornerRadius="16"
+                BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Margin="10" Padding="10">
+            <StackPanel Margin="16">
+                <TextBlock Text="Организации" FontSize="18" FontWeight="Medium" Margin="0,0,0,16"
+                           Foreground="{DynamicResource MaterialDesignBody}" />
+
+                <Button Background="#3e64e8" Foreground="White" Content="+ Добавить"
+                        Command="{Binding OpenAddOrganizationDialogCommand}"
+                        Margin="0,0,0,10" />
+                <TreeView ItemsSource="{Binding Nodes}">
+                    <TreeView.ItemTemplate>
+                        <HierarchicalDataTemplate ItemsSource="{Binding Path=Nodes}">
+                            <DockPanel HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                <!-- Node Name -->
+                                <TextBlock DockPanel.Dock="Left" FontSize="14" Text="{Binding Name}"
+                                           VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                <!-- Buttons -->
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                                            HorizontalAlignment="Right">
+                                    <!-- Show Workers -->
+                                    <Button
+                                        Command="{Binding DataContext.ShowWorkersCommand, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                                        CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}"
+                                        Padding="4" Margin="0,0,2,0">
+                                        <materialDesign:PackIcon Kind="Show" />
+                                    </Button>
+
+                                    <!-- Add Button -->
+                                    <Button
+                                        Command="{Binding DataContext.AddNodeCommand, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                                        CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}"
+                                        Padding="4" Margin="0,0,2,0">
+                                        <materialDesign:PackIcon Kind="Plus" />
+                                    </Button>
+
+                                    <!-- Edit Button -->
+                                    <Button
+                                        Command="{Binding DataContext.EditNodeCommand, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                                        CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}"
+                                        Padding="4" Margin="0,0,2,0">
+                                        <materialDesign:PackIcon Kind="Pencil" />
+                                    </Button>
+
+                                    <!-- Delete Button -->
+                                    <Button
+                                        Command="{Binding DataContext.DeleteNodeCommand, RelativeSource={RelativeSource AncestorType=TreeView}}"
+                                        CommandParameter="{Binding}" Style="{StaticResource MaterialDesignFlatButton}"
+                                        Padding="4" Margin="0,0,0,0">
+                                        <materialDesign:PackIcon Kind="Delete" />
+                                    </Button>
+                                </StackPanel>
+                            </DockPanel>
+                        </HierarchicalDataTemplate>
+                    </TreeView.ItemTemplate>
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <Setter Property="Focusable" Value="False" />
+                        </Style>
+                    </TreeView.ItemContainerStyle>
+                </TreeView>
+
+            </StackPanel>
+        </Border>
+
+        <!-- DialogHost for dialog content -->
+        <materialDesign:DialogHost Grid.Column="1" IsOpen="{Binding IsDialogOpen}" Background="White">
+            <materialDesign:DialogHost.DialogContent>
+                <Border CornerRadius="15" Background="White">
+                    <StackPanel Margin="20" Background="White">
+                        <TextBlock Text="Название организации" FontSize="18" FontWeight="Medium" Margin="0,0,0,20" />
+                        <TextBox Text="{Binding NewOrganizationName}" Width="510" Margin="0,0,0,20"
+                                 Background="White"
+                                 Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                 materialDesign:HintAssist.Hint="Организация">
+                        </TextBox>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button Width="250" Margin="0 0 15 0" Content="Отменить"
+                                    Command="{Binding CloseDialogCommand}" />
+                            <Button Width="250" Content="Сохранить" Command="{Binding AddNewOrganizationCommand}"
+                                    Background="#3e64e8"
+                                    Foreground="White" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </materialDesign:DialogHost.DialogContent>
+        </materialDesign:DialogHost>
+
+        <!-- Main Content -->
+        <Border Grid.Column="1" Background="White" CornerRadius="16"
+                BorderBrush="{DynamicResource MaterialDesignDivider}"
+                BorderThickness="1" Margin="10" Padding="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- Header -->
+                    <RowDefinition Height="*" />   <!-- Content -->
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="0,0,0,16">
+                    <TextBlock Text="Сотрудники организации" FontSize="20" FontWeight="Medium"
+                               Foreground="{DynamicResource MaterialDesignBody}" />
+                    <!-- <Button HorizontalAlignment="Left" Background="#d9dff4" Foreground="Black" Width="250" -->
+                    <!--         Content="+ Добавить сотрудника" -->
+                    <!--         Command="{Binding AddEmployeeCommand}" -->
+                    <!--         Style="{StaticResource MaterialDesignOutlinedButton}" Margin="0,16,0,0" /> -->
+                </StackPanel>
+
+                <!-- Placeholder -->
+                <StackPanel Grid.Row="1" Margin="0 25 0 0">
+                    <DataGrid
+                        IsReadOnly="True"
+                        AutoGenerateColumns="False"
+                        CanUserAddRows="False"
+                        CanUserSortColumns="False"
+                        HeadersVisibility="Column"
+                        ItemsSource="{Binding Workers}"
+                        Background="White"
+                        BorderBrush="Gray">
+
+                        <DataGrid.Resources>
+                            <!-- Style for DataGridColumnHeader -->
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                                <Setter Property="Foreground" Value="#8b8494" />
+                                <Setter Property="Background" Value="White" />
+                                <Setter Property="FontSize" Value="14" />
+                                <Setter Property="FontWeight" Value="Medium" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridColumnHeader">
+                                            <Border Padding="5 5 5 10" BorderBrush="#e3e6f2"
+                                                    BorderThickness="0.5,0.5,0.5,0.5"
+                                                    Background="{TemplateBinding Background}">
+                                                <ContentPresenter
+                                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                    Content="{TemplateBinding Content}"
+                                                    ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </DataGrid.Resources>
+
+                        <DataGrid.CellStyle>
+                            <Style TargetType="{x:Type DataGridCell}">
+                                <Setter Property="BorderBrush" Value="#e3e6f2" />
+                                <Setter Property="BorderThickness" Value="0.3,0,0.3,0.2" />
+                                <Style.Triggers>
+                                    <Trigger Property="DataGridCell.IsSelected" Value="True">
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" />
+                                        <Setter Property="Background" Value="White" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
+
+                        <DataGrid.Columns>
+                            <!-- ID Column -->
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="Auto">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Full Name Column -->
+                            <DataGridTextColumn Header="ФИО" Binding="{Binding FullName}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Job Title Column -->
+                            <DataGridTextColumn Header="Должность" Binding="{Binding JobTitle}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Mobile Column -->
+                            <DataGridTextColumn Header="Мобильный" Binding="{Binding Mobile}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Telegram Username Column -->
+                            <DataGridTextColumn Header="Телеграм" Binding="{Binding TelegramUsername}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- End Work Date Column -->
+                            <DataGridTextColumn Header="Срок действия пропуска"
+                                                Binding="{Binding EndWork, StringFormat={}{0:dd/MM/yyyy}}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Zone Column -->
+                            <DataGridTextColumn Header="Зона работы" Binding="{Binding Zone.Name}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Card Number Column -->
+                            <DataGridTextColumn Header="Номер карты" Binding="{Binding CardNumber}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="Padding" Value="5 0 5 0" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Photo Column -->
+                            <DataGridTemplateColumn Header="Фото" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Image Source="{Binding PhotoPath}" Width="50" Height="50" Stretch="Fill" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Actions Column -->
+                            <!-- <DataGridTemplateColumn Header="Действия" Width="Auto"> -->
+                            <!--     <DataGridTemplateColumn.CellTemplate> -->
+                            <!--         <DataTemplate> -->
+                            <!--             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" -->
+                            <!--                         IsHitTestVisible="True"> -->
+                            <!--                 ~1~ Show Button @1@ -->
+                            <!--                 <Button ToolTip="Show" -->
+                            <!--                         Command="{Binding DataContext.ShowCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" -->
+                            <!--                         Style="{StaticResource MaterialDesignFlatButton}" -->
+                            <!--                         CommandParameter="{Binding}" -->
+                            <!--                         Padding="4" Margin="0,0,2,0"> -->
+                            <!--                     <materialDesign:PackIcon Kind="Show" FontSize="14" /> -->
+                            <!--                 </Button> -->
+                            <!-- -->
+                            <!--                 ~1~ Edit Button @1@ -->
+                            <!--                 <Button ToolTip="Edit" -->
+                            <!--                         Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" -->
+                            <!--                         Style="{StaticResource MaterialDesignFlatButton}" -->
+                            <!--                         CommandParameter="{Binding}" -->
+                            <!--                         Padding="4" Margin="0,0,2,0"> -->
+                            <!--                     <materialDesign:PackIcon Kind="Pencil" FontSize="14" /> -->
+                            <!--                 </Button> -->
+                            <!-- -->
+                            <!--                 ~1~ Delete Button @1@ -->
+                            <!--                 <Button ToolTip="Delete" -->
+                            <!--                         Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}" -->
+                            <!--                         Style="{StaticResource MaterialDesignFlatButton}" -->
+                            <!--                         CommandParameter="{Binding}" -->
+                            <!--                         Padding="4" Margin="0,0,0,0"> -->
+                            <!--                     <materialDesign:PackIcon Kind="Delete" FontSize="14" /> -->
+                            <!--                 </Button> -->
+                            <!--             </StackPanel> -->
+                            <!--         </DataTemplate> -->
+                            <!--     </DataGridTemplateColumn.CellTemplate> -->
+                            <!-- </DataGridTemplateColumn> -->
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+                <!-- <Border Grid.Row="1" Background="White" CornerRadius="8" -->
+                <!--         BorderBrush="{DynamicResource MaterialDesignDivider}" -->
+                <!--         VerticalAlignment="Center" HorizontalAlignment="Center" Margin="32"> -->
+                <!--     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"> -->
+                <!--         <Image Source="/Images/empty_icon.png" Width="64" Height="64" /> -->
+                <!--         <TextBlock Text="Здесь пока пусто" FontSize="16" -->
+                <!--                    Foreground="#8b7c8d" -->
+                <!--                    Margin="0,16,0,0" TextAlignment="Center" /> -->
+                <!--     </StackPanel> -->
+                <!-- </Border> -->
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
