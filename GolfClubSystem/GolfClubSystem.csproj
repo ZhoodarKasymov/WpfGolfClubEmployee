@@ -8,6 +8,7 @@
         <UseWPF>true</UseWPF>
         <StartupObject>GolfClubSystem.Program</StartupObject>
         <ApplicationIcon>golf-club-logo.ico</ApplicationIcon>
+        <UserSecretsId>556a881b-b073-47f9-889c-a1d14a972369</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
