@@ -1,6 +1,9 @@
-﻿using GolfClubSystem.Data.Migrations;
+﻿using System;
+using System.Collections.Generic;
+using GolfClubSystem.Data.Migrations;
 using GolfClubSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
 
 namespace GolfClubSystem.Context;
 
@@ -17,9 +20,13 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Efmigrationshistory> Efmigrationshistories { get; set; }
 
+    public virtual DbSet<Holiday> Holidays { get; set; }
+
     public virtual DbSet<Organization> Organizations { get; set; }
 
-    public virtual DbSet<Shift> Shifts { get; set; }
+    public virtual DbSet<Schedule> Schedules { get; set; }
+
+    public virtual DbSet<Scheduleday> Scheduledays { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
 
@@ -47,6 +54,23 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.ProductVersion).HasMaxLength(32);
         });
 
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("holiday");
+
+            entity.HasIndex(e => e.ScheduleId, "FK_Holiday_Schedule_Id");
+
+            entity.HasIndex(e => e.Id, "Id").IsUnique();
+
+            entity.Property(e => e.Description).HasMaxLength(255);
+
+            entity.HasOne(d => d.Schedule).WithMany(p => p.Holidays)
+                .HasForeignKey(d => d.ScheduleId)
+                .HasConstraintName("FK_Holiday_Schedule_Id");
+        });
+
         modelBuilder.Entity<Organization>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
@@ -62,19 +86,49 @@ public partial class MyDbContext : DbContext
                 .HasConstraintName("FK_Organization_Organization_ParentOrganizationId");
         });
 
-        modelBuilder.Entity<Shift>(entity =>
+        modelBuilder.Entity<Schedule>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PRIMARY");
 
-            entity.ToTable("shifts");
+            entity.ToTable("schedule");
+
+            entity.HasIndex(e => e.Id, "Id").IsUnique();
 
             entity.Property(e => e.BreakEnd).HasColumnType("time");
             entity.Property(e => e.BreakStart).HasColumnType("time");
-            entity.Property(e => e.EndTime).HasColumnType("time");
-            entity.Property(e => e.Notes).HasMaxLength(255);
-            entity.Property(e => e.ShiftDayOfWeek).HasColumnType("enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')");
-            entity.Property(e => e.ShiftType).HasColumnType("enum('Day','Night')");
-            entity.Property(e => e.StartTime).HasColumnType("time");
+            entity.Property(e => e.DeletedAt).HasColumnType("datetime");
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.PermissibleEarlyLeaveEnd)
+                .HasDefaultValueSql("'00:30:00'")
+                .HasColumnType("time");
+            entity.Property(e => e.PermissibleEarlyLeaveStart)
+                .HasDefaultValueSql("'00:30:00'")
+                .HasColumnType("time");
+            entity.Property(e => e.PermissibleLateTimeEnd)
+                .HasDefaultValueSql("'00:30:00'")
+                .HasColumnType("time");
+            entity.Property(e => e.PermissibleLateTimeStart)
+                .HasDefaultValueSql("'00:30:00'")
+                .HasColumnType("time");
+        });
+
+        modelBuilder.Entity<Scheduleday>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("scheduleday");
+
+            entity.HasIndex(e => e.ScheduleId, "FK_ScheduleDay_Schedule_Id");
+
+            entity.HasIndex(e => e.Id, "Id").IsUnique();
+
+            entity.Property(e => e.DayOfWeek).HasMaxLength(50);
+            entity.Property(e => e.WorkEnd).HasColumnType("time");
+            entity.Property(e => e.WorkStart).HasColumnType("time");
+
+            entity.HasOne(d => d.Schedule).WithMany(p => p.Scheduledays)
+                .HasForeignKey(d => d.ScheduleId)
+                .HasConstraintName("FK_ScheduleDay_Schedule_Id");
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -90,9 +144,9 @@ public partial class MyDbContext : DbContext
 
             entity.ToTable("workers");
 
-            entity.HasIndex(e => e.ShiftId, "FK_Workers_Organization_ShiftId");
-
             entity.HasIndex(e => e.ZoneId, "FK_Workers_Organization_ZoneId");
+
+            entity.HasIndex(e => e.ScheduleId, "FK_Workers_ScheduleId");
 
             entity.HasIndex(e => e.OrganizationId, "IX_Workers_OrganizationId");
 
@@ -108,9 +162,9 @@ public partial class MyDbContext : DbContext
                 .HasForeignKey(d => d.OrganizationId)
                 .HasConstraintName("FK_Workers_Organization_OrganizationId");
 
-            entity.HasOne(d => d.Shift).WithMany(p => p.Workers)
-                .HasForeignKey(d => d.ShiftId)
-                .HasConstraintName("FK_Workers_Organization_ShiftId");
+            entity.HasOne(d => d.Schedule).WithMany(p => p.Workers)
+                .HasForeignKey(d => d.ScheduleId)
+                .HasConstraintName("FK_Workers_Schedule_Id");
 
             entity.HasOne(d => d.Zone).WithMany(p => p.Workers)
                 .HasForeignKey(d => d.ZoneId)
@@ -123,7 +177,7 @@ public partial class MyDbContext : DbContext
 
             entity.ToTable("zones");
 
-            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.DeletedAt).HasColumnType("timestamp");
             entity.Property(e => e.EnterIp).HasMaxLength(255);
             entity.Property(e => e.ExitIp).HasMaxLength(255);
             entity.Property(e => e.Login).HasMaxLength(255);

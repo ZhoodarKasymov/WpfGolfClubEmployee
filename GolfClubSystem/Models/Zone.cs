@@ -13,6 +13,8 @@ public partial class Zone
     public string Login { get; set; } = null!;
 
     public string Password { get; set; } = null!;
+    
+    public DateTime? DeletedAt { get; set; }
 
     public virtual ICollection<Worker> Workers { get; set; } = new List<Worker>();
 }

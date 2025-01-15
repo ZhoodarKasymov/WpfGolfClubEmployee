@@ -227,7 +227,7 @@ namespace GolfClubSystem.ViewModels
                     await _unitOfWork.OrganizationRepository.UpdateAsync(selectedOrg);
                     await _unitOfWork.SaveAsync();
                     Nodes.Remove(node);
-                    OnPropertyChanged(nameof(Nodes));
+                    UpdateNodes();
                 }
             }
             

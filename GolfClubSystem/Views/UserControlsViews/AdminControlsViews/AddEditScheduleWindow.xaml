@@ -1,0 +1,250 @@
+﻿<Window x:Class="GolfClubSystem.Views.UserControlsViews.AdminControlsViews.AddEditScheduleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:helpers="clr-namespace:GolfClubSystem.Helpers"
+        Background="#f7f9ff"
+        mc:Ignorable="d"
+        Title="Расписание" Height="800" Width="640"
+        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <helpers:TimeOnlyToDateTimeConverter x:Key="TimeOnlyToDateTimeConverter" />
+        <Style x:Key="RoundCheckBoxStyle" TargetType="CheckBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Circular Indicator -->
+                            <Grid Width="17" Height="17" Margin="0,0,8,0">
+                                <!-- Outer Circle -->
+                                <Ellipse x:Name="OuterCircle"
+                                         Stroke="Gray"
+                                         StrokeThickness="2"
+                                         Fill="White" />
+                                <!-- Inner Circle (Dot) -->
+                                <Ellipse x:Name="CheckMark"
+                                         Fill="#325ae6"
+                                         Width="10"
+                                         Height="10"
+                                         Opacity="0" />
+                            </Grid>
+                            <!-- Text -->
+                            <TextBlock x:Name="CheckBoxText"
+                                       Text="{TemplateBinding Content}"
+                                       VerticalAlignment="Center"
+                                       Foreground="Gray" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <!-- Trigger for Checked State -->
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="OuterCircle" Property="Stroke" Value="#325ae6" />
+                                <Setter TargetName="CheckMark" Property="Opacity" Value="1" />
+                                <Setter TargetName="CheckBoxText" Property="Foreground" Value="Black" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+            <Border Width="550" Background="White" CornerRadius="16" Padding="30">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0" Text="Расписание"
+                               FontSize="25" FontWeight="Medium" Foreground="{DynamicResource MaterialDesignBody}"
+                               HorizontalAlignment="Center" Margin="0,0,0,20" />
+
+                    <!-- Form -->
+                    <Grid Grid.Row="1">
+                        <StackPanel>
+                            <!-- Название расписания -->
+                            <TextBlock Text="Введите название расписания*" FontSize="14" Margin="0,5,0,5"
+                                       Foreground="#8b8494" />
+                            <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Название"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
+                                     Text="{Binding Schedule.Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                            <!-- Заголовок для выбора рабочих дней -->
+                            <TextBlock Text="Выберите рабочие дни:" FontSize="14" FontWeight="Medium" Margin="0 10 0 5" />
+
+                            <!-- Список дней недели с чекбоксами и временем -->
+                            <UniformGrid Columns="1" Margin="0 10 0 0">
+                                <ItemsControl ItemsSource="{Binding Schedule.Scheduledays}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid VerticalAlignment="Center" Margin="0 5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Day Name -->
+                                                <CheckBox Grid.Column="0"
+                                                          Style="{StaticResource RoundCheckBoxStyle}"
+                                                          Content="{Binding DayOfWeek}"
+                                                          FontSize="14"
+                                                          VerticalAlignment="Center"
+                                                          IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+
+                                                <!-- Work Start -->
+                                                <materialDesign:TimePicker
+                                                    Grid.Column="1"
+                                                    Width="150"
+                                                    Margin="10,0"
+                                                    materialDesign:HintAssist.Hint="Начало"
+                                                    Is24Hours="True"
+                                                    Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                                    SelectedTime="{Binding WorkStart, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}" />
+
+                                                <!-- Work End -->
+                                                <materialDesign:TimePicker
+                                                    Grid.Column="2"
+                                                    Width="150"
+                                                    Margin="0, 0, 0, 0"
+                                                    materialDesign:HintAssist.Hint="Конец"
+                                                    Is24Hours="True"
+                                                    Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                                    SelectedTime="{Binding WorkEnd, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </UniformGrid>
+
+                            <Border Background="#8b8494"
+                                    Height="1"
+                                    Margin="0,10,0,10" />
+
+                            <!-- Поля допустимого времени опоздания/ухода -->
+                            <StackPanel Margin="0 10 0 0">
+
+                                <Grid VerticalAlignment="Center" Margin="0 5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" /> <!-- Для текста -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                               Text="Допустимое время прихода" FontSize="14" Margin="0,5,0,5"
+                                               Foreground="#8b8494" TextWrapping="Wrap" />
+
+                                    <!-- Начало -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="1"
+                                        Width="150"
+                                        Margin="10,0"
+                                        materialDesign:HintAssist.Hint="начало"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.PermissibleLateTimeStart, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+
+                                    <!-- Конец -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="2"
+                                        Width="150"
+                                        Margin="0, 0 ,0 ,0"
+                                        materialDesign:HintAssist.Hint="конец"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.PermissibleLateTimeEnd, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+                                </Grid>
+                                <Grid VerticalAlignment="Center" Margin="0 5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" /> <!-- Для текста -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Допустимое время ухода"
+                                               FontSize="14" Margin="0,5,0,5"
+                                               Foreground="#8b8494" TextWrapping="Wrap" />
+
+                                    <!-- Начало -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="1"
+                                        Width="150"
+                                        Margin="10,0"
+                                        materialDesign:HintAssist.Hint="начало"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.PermissibleEarlyLeaveStart, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+
+                                    <!-- Конец -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="2"
+                                        Width="150"
+                                        Margin="0, 0 ,0 ,0"
+                                        materialDesign:HintAssist.Hint="конец"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.PermissibleEarlyLeaveEnd, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+                                </Grid>
+                                <Grid VerticalAlignment="Center" Margin="0 5">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" /> <!-- Для текста -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                        <ColumnDefinition Width="Auto" /> <!-- Для TimePicker -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="Перерыв"
+                                               FontSize="14" Margin="0,5,0,5"
+                                               Foreground="#8b8494" TextWrapping="Wrap" />
+
+                                    <!-- Начало -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="1"
+                                        Width="150"
+                                        Margin="10,0"
+                                        materialDesign:HintAssist.Hint="начало"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.BreakStart, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+
+                                    <!-- Конец -->
+                                    <materialDesign:TimePicker
+                                        Grid.Column="2"
+                                        Width="150"
+                                        Margin="0, 0 ,0 ,0"
+                                        materialDesign:HintAssist.Hint="конец"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        HorizontalAlignment="Right"
+                                        SelectedTime="{Binding Schedule.BreakEnd, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Footer Buttons -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,-10,0">
+                        <Button Content="Сохранить"
+                                IsEnabled="{Binding IsEnable}"
+                                Click="ButtonBase_OnClick"
+                                Style="{StaticResource MaterialDesignRaisedButton}" Background="#2b54e6"
+                                Foreground="White" Width="200" Height="40" Margin="10,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</Window>

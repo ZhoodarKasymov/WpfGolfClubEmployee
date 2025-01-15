@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using GolfClubSystem.Views.UserControlsViews;
+using WorkersView = GolfClubSystem.Views.UserControlsViews.WorkersView;
 
 namespace GolfClubSystem.ViewModels;
 

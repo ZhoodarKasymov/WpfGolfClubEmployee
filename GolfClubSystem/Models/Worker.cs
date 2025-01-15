@@ -26,17 +26,17 @@ public partial class Worker
 
     public DateTime? DeletedAt { get; set; }
 
-    public int? ShiftId { get; set; }
-
     public DateTime StartWork { get; set; }
 
     public DateTime? EndWork { get; set; }
 
     public int Id { get; set; }
 
+    public uint? ScheduleId { get; set; }
+
     public virtual Organization? Organization { get; set; }
 
-    public virtual Shift? Shift { get; set; }
+    public virtual Schedule? Schedule { get; set; }
 
     public virtual Zone? Zone { get; set; }
 

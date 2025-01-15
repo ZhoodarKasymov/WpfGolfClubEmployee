@@ -40,7 +40,7 @@ public partial class LoginWindow : Window
         {
             case "Admin":
             {
-                var adminWindow = new AdminWindow();
+                var adminWindow = new MainAdminWindow();
                 adminWindow.Show();
                 break;
             }

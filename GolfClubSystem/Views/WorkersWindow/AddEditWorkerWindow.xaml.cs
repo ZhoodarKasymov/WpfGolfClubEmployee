@@ -24,6 +24,7 @@ public partial class AddEditWorkerWindow : Window
 {
     public List<Organization> Organizations { get; set; }
     public List<Zone> Zones { get; set; }
+    public List<Schedule> Schedules { get; set; }
     public Worker Worker { get; set; }
     public WorkerType WorkerType { get; set; }
     public bool IsEnable { get; set; }
@@ -50,7 +51,8 @@ public partial class AddEditWorkerWindow : Window
         }
 
         Organizations = _unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
-        Zones = _unitOfWork.ZoneRepository.GetAllAsync().ToList();
+        Zones = _unitOfWork.ZoneRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
+        Schedules = _unitOfWork.ScheduleRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
         DataContext = this;
     }
 
@@ -248,7 +250,7 @@ public partial class AddEditWorkerWindow : Window
                 currentWorker.ZoneId = Worker.ZoneId;
                 currentWorker.Mobile = Worker.Mobile;
                 currentWorker.CardNumber = Worker.CardNumber;
-                currentWorker.ShiftId = Worker.ShiftId;
+                currentWorker.ScheduleId = Worker.ScheduleId;
                 currentWorker.FullName = Worker.FullName;
                 currentWorker.StartWork = Worker.StartWork;
                 currentWorker.EndWork = Worker.EndWork;
