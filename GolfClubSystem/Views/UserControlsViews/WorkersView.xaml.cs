@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
 using GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
 using GolfClubSystem.Views.WorkersWindow;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +35,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
 
     private void UpdateWorkers()
     {
-        var workers = _unitOfWork.WorkerRepository.GetAllAsync()
+        var workers = _unitOfWork.WorkerRepository.GetAll()
             .Include(w => w.Zone)
             .Where(w => w.DeletedAt == null)
             .AsNoTracking()
@@ -65,13 +66,45 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
 
         if (result == MessageBoxResult.Yes)
         {
-            var currentWorker = _unitOfWork.WorkerRepository.GetAllAsync().FirstOrDefault(o => o.Id == worker.Id);
+            var currentWorker = _unitOfWork.WorkerRepository.GetAll().Include(w => w.Zone).FirstOrDefault(o => o.Id == worker.Id);
+            
             if (currentWorker is not null)
             {
+                var terminalService = new TerminalService(currentWorker.Zone!.Login, currentWorker.Zone.Password);
+                
                 currentWorker.DeletedAt = DateTime.Now;
                 await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
                 await _unitOfWork.SaveAsync();
                 UpdateWorkers();
+
+                await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
+                {
+                    UserInfoDelCond = new UserInfoDelCond
+                    {
+                        EmployeeNoList =
+                        [
+                            new EmployeeNo
+                            {
+                                EmployeeNoValue = currentWorker.Id.ToString()
+                            }
+                        ]
+                    }
+                }, worker.Zone!.EnterIp);
+                
+                await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
+                {
+                    UserInfoDelCond = new UserInfoDelCond
+                    {
+                        EmployeeNoList =
+                        [
+                            new EmployeeNo
+                            {
+                                EmployeeNoValue = currentWorker.Id.ToString()
+                            }
+                        ]
+                    }
+                }, worker.Zone!.ExitIp);
+
             }
         }
     }

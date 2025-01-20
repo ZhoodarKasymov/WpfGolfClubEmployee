@@ -27,7 +27,7 @@ public partial class LoginWindow : Window
         }
 
         var user = await _unitOfWork.UserRepository
-            .GetAllAsync()
+            .GetAll()
             .FirstOrDefaultAsync(u => u.Username == viewModel.Username && u.Password == viewModel.Password);
 
         if (user == null)

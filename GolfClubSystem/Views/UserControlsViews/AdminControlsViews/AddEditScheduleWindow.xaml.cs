@@ -56,7 +56,7 @@ public partial class AddEditScheduleWindow : Window
             }
             case WorkerType.Edit:
             {
-                var currentSchedule = _unitOfWork.ScheduleRepository.GetAllAsync()
+                var currentSchedule = _unitOfWork.ScheduleRepository.GetAll()
                     .Where(w => w.DeletedAt == null)
                     .FirstOrDefault(w => w.Id == Schedule.Id);
 
@@ -69,8 +69,7 @@ public partial class AddEditScheduleWindow : Window
                     currentSchedule.PermissibleEarlyLeaveEnd = Schedule.PermissibleEarlyLeaveEnd;
                     currentSchedule.PermissibleLateTimeStart = Schedule.PermissibleLateTimeStart;
                     currentSchedule.PermissibleLateTimeEnd = Schedule.PermissibleLateTimeEnd;
-                    currentSchedule.PermissionToLateMin = Schedule.PermissionToLateMin;
-                    currentSchedule.PermissionToGoEarlyMin = Schedule.PermissionToGoEarlyMin;
+                    currentSchedule.PermissionToLateTime = Schedule.PermissionToLateTime;
                     currentSchedule.Scheduledays = Schedule.Scheduledays;
                     await _unitOfWork.ScheduleRepository.UpdateAsync(currentSchedule);
                 }
@@ -79,7 +78,6 @@ public partial class AddEditScheduleWindow : Window
             }
         }
 
-        await _unitOfWork.SaveAsync();
         Close();
     }
 }

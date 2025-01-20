@@ -20,9 +20,7 @@ public partial class Schedule
 
     public TimeOnly? PermissibleEarlyLeaveEnd { get; set; }
 
-    public int? PermissionToLateMin { get; set; }
-
-    public int? PermissionToGoEarlyMin { get; set; }
+    public TimeOnly? PermissionToLateTime { get; set; }
 
     public virtual ICollection<Holiday> Holidays { get; set; } = new List<Holiday>();
 

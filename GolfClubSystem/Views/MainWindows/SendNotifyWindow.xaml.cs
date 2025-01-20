@@ -65,7 +65,7 @@ namespace GolfClubSystem.Views.MainWindows
 
         private void UpdateWorkers()
         {
-            var workers = _unitOfWork.WorkerRepository.GetAllAsync()
+            var workers = _unitOfWork.WorkerRepository.GetAll()
                 .Where(w => w.DeletedAt == null)
                 .AsNoTracking()
                 .ToList();

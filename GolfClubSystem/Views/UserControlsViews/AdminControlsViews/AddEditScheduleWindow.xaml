@@ -231,6 +231,19 @@
                                         HorizontalAlignment="Right"
                                         SelectedTime="{Binding Schedule.BreakEnd, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
                                 </Grid>
+                                <Grid VerticalAlignment="Center" Margin="0 5">
+                                    <TextBlock Text="Опоздание до" FontSize="14" Margin="0,5,0,5"
+                                               Foreground="#8b8494" />
+
+                                    <!-- Начало -->
+                                    <materialDesign:TimePicker
+                                        Width="150"
+                                        Margin="20,5,0,5"
+                                        materialDesign:HintAssist.Hint="до"
+                                        Is24Hours="True"
+                                        Style="{StaticResource MaterialDesignOutlinedTimePicker}"
+                                        SelectedTime="{Binding Schedule.PermissionToLateTime, Mode=TwoWay, Converter={StaticResource TimeOnlyToDateTimeConverter}}"/>
+                                </Grid>
                             </StackPanel>
                         </StackPanel>
                     </Grid>

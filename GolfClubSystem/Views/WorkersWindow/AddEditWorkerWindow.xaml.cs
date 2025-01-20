@@ -9,8 +9,11 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace GolfClubSystem.Views.WorkersWindow;
 
@@ -50,9 +53,9 @@ public partial class AddEditWorkerWindow : Window
             WorkerType = WorkerType.Add;
         }
 
-        Organizations = _unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
-        Zones = _unitOfWork.ZoneRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
-        Schedules = _unitOfWork.ScheduleRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList();
+        Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+        Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+        Schedules = _unitOfWork.ScheduleRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
         DataContext = this;
     }
 
@@ -231,16 +234,24 @@ public partial class AddEditWorkerWindow : Window
             return;
         }
 
+        var zone = await _unitOfWork.ZoneRepository.GetAll()
+            .FirstOrDefaultAsync(z => z.DeletedAt == null && z.Id == Worker.ZoneId);
+        var terminalService = new TerminalService(zone.Login, zone.Password);
+
         if (WorkerType == WorkerType.Add)
         {
             var photoPath = SaveBitmapImage(WorkerPhoto.Source as BitmapImage);
             Worker.PhotoPath = photoPath;
             await _unitOfWork.WorkerRepository.AddAsync(Worker);
+            await _unitOfWork.SaveAsync();
+
+            await UpdateAddTerminalEmployee(Worker, photoPath, zone.EnterIp);
+            await UpdateAddTerminalEmployee(Worker, photoPath, zone.ExitIp);
         }
 
         if (WorkerType == WorkerType.Edit)
         {
-            var currentWorker = _unitOfWork.WorkerRepository.GetAllAsync().Where(w => w.DeletedAt == null)
+            var currentWorker = _unitOfWork.WorkerRepository.GetAll().Where(w => w.DeletedAt == null)
                 .FirstOrDefault(w => w.Id == Worker.Id);
 
             if (currentWorker is not null)
@@ -259,14 +270,34 @@ public partial class AddEditWorkerWindow : Window
                 currentWorker.AdditionalMobile = Worker.AdditionalMobile;
                 currentWorker.PhotoPath = photoPath;
                 await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
+                await _unitOfWork.SaveAsync();
+
+                await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.EnterIp);
+                await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.ExitIp);
+                await UpdateAddTerminalEmployee(currentWorker, photoPath, zone.EnterIp);
+                await UpdateAddTerminalEmployee(currentWorker, photoPath, zone.ExitIp);
             }
         }
 
-        await _unitOfWork.SaveAsync();
         Close();
+
+        async Task UpdateAddTerminalEmployee(Worker worker, string photoPath, string ip)
+        {
+            var terminalUserAddedEnter = await terminalService.AddUserInfoAsync(worker, ip);
+            if (terminalUserAddedEnter)
+            {
+                await terminalService.AddUserImageAsync(worker, ip);
+
+                if (worker.CardNumber != null)
+                {
+                    await terminalService.AddCardInfoAsync(worker, ip);
+                }
+            }
+        }
     }
 
-    public static string SaveBitmapImage(BitmapImage bitmapImage, string directoryPath = "C:\\Users\\user\\Downloads")
+    public static string SaveBitmapImage(BitmapImage bitmapImage, string directoryPath = "C:\\Users\\user\\Downloads",
+        int maxSizeKB = 200)
     {
         // Ensure the directory exists
         if (!Directory.Exists(directoryPath))
@@ -275,25 +306,69 @@ public partial class AddEditWorkerWindow : Window
         }
 
         // Generate a new GUID for the file name
-        string fileName = Guid.NewGuid().ToString() + ".png"; // Save as PNG
+        string fileName = Guid.NewGuid().ToString() + ".jpeg"; // Save as JPEG
         string fullPath = Path.Combine(directoryPath, fileName);
 
         // Convert BitmapImage to Bitmap
         using (var memoryStream = new MemoryStream())
         {
             // Save BitmapImage to a memory stream
-            BitmapEncoder encoder = new PngBitmapEncoder(); // Use PNG format
+            BitmapEncoder encoder = new PngBitmapEncoder(); // Use PNG format for internal storage
             encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
             encoder.Save(memoryStream);
 
             // Create a Bitmap from the memory stream
             using (var bitmap = new Bitmap(memoryStream))
             {
-                // Save the Bitmap to the specified directory
-                bitmap.Save(fullPath, ImageFormat.Png);
+                // Compress and save as JPEG with the quality setting
+                var encoderParams = new EncoderParameters(1);
+                var qualityParam = new EncoderParameter(Encoder.Quality, 90L); // Start with 90% quality
+                encoderParams.Param[0] = qualityParam;
+
+                // Create JPEG encoder
+                var jpegCodec = GetEncoder(ImageFormat.Jpeg);
+
+                // Save the Bitmap with the quality setting
+                int quality = 90;
+                do
+                {
+                    using (var outputStream = new MemoryStream())
+                    {
+                        bitmap.Save(outputStream, jpegCodec, encoderParams);
+
+                        // Check the size and adjust quality if necessary
+                        if (outputStream.Length / 1024 > maxSizeKB) // If file is larger than maxSizeKB (in KB)
+                        {
+                            quality -= 5; // Decrease quality to reduce size
+                            qualityParam = new EncoderParameter(Encoder.Quality, quality);
+                            encoderParams.Param[0] = qualityParam;
+                        }
+                        else
+                        {
+                            // Save the final file
+                            File.WriteAllBytes(fullPath, outputStream.ToArray());
+                            break;
+                        }
+                    }
+                } while (quality > 10); // Ensure that the quality does not go below 10%
             }
         }
 
+        // Return the URL to access the saved image
         return $"http://192.168.0.2:8080/{fileName}";
+    }
+
+    // Helper method to get the JPEG encoder
+    private static ImageCodecInfo GetEncoder(ImageFormat format)
+    {
+        foreach (ImageCodecInfo codec in ImageCodecInfo.GetImageEncoders())
+        {
+            if (codec.FormatID == format.Guid)
+            {
+                return codec;
+            }
+        }
+
+        return null;
     }
 }

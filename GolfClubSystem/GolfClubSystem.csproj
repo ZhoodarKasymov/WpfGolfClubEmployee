@@ -55,6 +55,26 @@
       <Content Include="Images\golf-club-logo.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <None Remove="Images\came.png" />
+      <Content Include="Images\came.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\earlyExit.png" />
+      <Content Include="Images\earlyExit.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\late.png" />
+      <Content Include="Images\late.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\notCame.png" />
+      <Content Include="Images\notCame.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\status_tittle.png" />
+      <Content Include="Images\status_tittle.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
     <ItemGroup>

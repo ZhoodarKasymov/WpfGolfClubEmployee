@@ -34,6 +34,8 @@ public partial class Worker
 
     public uint? ScheduleId { get; set; }
 
+    public virtual ICollection<Employeehistory> Employeehistories { get; set; } = new List<Employeehistory>();
+
     public virtual Organization? Organization { get; set; }
 
     public virtual Schedule? Schedule { get; set; }

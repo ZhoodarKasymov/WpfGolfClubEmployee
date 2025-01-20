@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
 using GolfClubSystem.Views.WorkersWindow;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,7 +34,7 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
 
     private void UpdateZones()
     {
-        var zones = _unitOfWork.ZoneRepository.GetAllAsync()
+        var zones = _unitOfWork.ZoneRepository.GetAll()
             .Where(w => w.DeletedAt == null)
             .AsNoTracking()
             .ToList();
@@ -63,7 +64,7 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
 
         if (result == MessageBoxResult.Yes)
         {
-            var currentZone = _unitOfWork.ZoneRepository.GetAllAsync().FirstOrDefault(o => o.Id == zone.Id);
+            var currentZone = _unitOfWork.ZoneRepository.GetAll().FirstOrDefault(o => o.Id == zone.Id);
             if (currentZone is not null)
             {
                 currentZone.DeletedAt = DateTime.Now;

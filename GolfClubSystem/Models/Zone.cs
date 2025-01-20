@@ -17,4 +17,6 @@ public partial class Zone
     public DateTime? DeletedAt { get; set; }
 
     public virtual ICollection<Worker> Workers { get; set; } = new List<Worker>();
+
+    public virtual ICollection<Employeehistory>? Employeehistories { get; set; } = new List<Employeehistory>();
 }

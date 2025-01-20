@@ -234,11 +234,9 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-
-                            <DataGridTextColumn Header="Разрешить опоздание не более чем на"
-                                                Binding="{Binding PermissionToLateMin}"
-                                                Width="*">
-                                <DataGridTextColumn.HeaderStyle>
+                            
+                            <DataGridTemplateColumn Header="Опоздание до" Width="*">
+                                <DataGridTemplateColumn.HeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
                                         <Setter Property="HorizontalContentAlignment" Value="Left"/>
                                         <Setter Property="Foreground" Value="#8b8494" />
@@ -268,58 +266,19 @@
                                             </Setter.Value>
                                         </Setter>
                                     </Style>
-                                </DataGridTextColumn.HeaderStyle>
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                        <Setter Property="TextWrapping" Value="Wrap" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-
-                            <DataGridTextColumn Header="Разрешить уход раньше не более чем на"
-                                                Binding="{Binding PermissionToGoEarlyMin}" Width="*">
-                                <DataGridTextColumn.HeaderStyle>
-                                    <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                        <Setter Property="Foreground" Value="#8b8494" />
-                                        <Setter Property="Background" Value="White" />
-                                        <Setter Property="FontSize" Value="14" />
-                                        <Setter Property="FontWeight" Value="Medium" />
-                                        <Setter Property="Template">
-                                            <Setter.Value>
-                                                <ControlTemplate TargetType="DataGridColumnHeader">
-                                                    <Border Padding="5 5 5 10" BorderBrush="#e3e6f2"
-                                                            BorderThickness="0.5,0.5,0.5,0.5"
-                                                            Background="{TemplateBinding Background}">
-                                                        <ContentPresenter
-                                                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                                            Content="{TemplateBinding Content}"
-                                                            ContentTemplate="{TemplateBinding ContentTemplate}" />
-                                                    </Border>
-                                                </ControlTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                        <Setter Property="ContentTemplate">
-                                            <Setter.Value>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" />
-                                                </DataTemplate>
-                                            </Setter.Value>
-                                        </Setter>
-                                    </Style>
-                                </DataGridTextColumn.HeaderStyle>
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                        <Setter Property="TextWrapping" Value="Wrap" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                                </DataGridTemplateColumn.HeaderStyle>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock VerticalAlignment="Center" Padding="5 0 5 0">
+                                            <TextBlock.Text>
+                                                <MultiBinding StringFormat="{}{0:HH:mm}">
+                                                    <Binding Path="PermissionToLateTime" />
+                                                </MultiBinding>
+                                            </TextBlock.Text>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
                             <DataGridTextColumn Header="Праздничные дни" Width="*">
                                 <DataGridTextColumn.ElementStyle>

@@ -46,7 +46,7 @@ public class TelegramService
                     
                     if (username != null)
                     {
-                        var worker = await _unitOfWork.WorkerRepository.GetAllAsync()
+                        var worker = await _unitOfWork.WorkerRepository.GetAll()
                             .Where(w => w.DeletedAt == null)
                             .FirstOrDefaultAsync(w => w.TelegramUsername != null && w.TelegramUsername.ToLower() == username, cancellationToken);
                     
@@ -106,7 +106,7 @@ public class TelegramService
     public async Task SendMessageByUsernameAsync(int workerId, string message)
     {
         var worker = await _unitOfWork.WorkerRepository
-            .GetAllAsync()
+            .GetAll()
             .Where(w => w.DeletedAt == null)
             .FirstOrDefaultAsync(w => w.Id == workerId);
 

@@ -12,6 +12,7 @@ public class UnitOfWork : IDisposable
     public GenericRepository<Organization> OrganizationRepository { get; }
     public GenericRepository<Zone> ZoneRepository { get; }
     public GenericRepository<Schedule> ScheduleRepository { get; }
+    public GenericRepository<Employeehistory> HistoryRepository { get; }
 
     public UnitOfWork()
     {
@@ -21,6 +22,7 @@ public class UnitOfWork : IDisposable
         OrganizationRepository = new GenericRepository<Organization>(_context);
         ZoneRepository = new GenericRepository<Zone>(_context);
         ScheduleRepository = new GenericRepository<Schedule>(_context);
+        HistoryRepository = new GenericRepository<Employeehistory>(_context);
     }
 
     public async Task SaveAsync()

@@ -20,6 +20,8 @@ public partial class MyDbContext : DbContext
 
     public virtual DbSet<Efmigrationshistory> Efmigrationshistories { get; set; }
 
+    public virtual DbSet<Employeehistory> Employeehistories { get; set; }
+
     public virtual DbSet<Holiday> Holidays { get; set; }
 
     public virtual DbSet<Organization> Organizations { get; set; }
@@ -52,6 +54,30 @@ public partial class MyDbContext : DbContext
 
             entity.Property(e => e.MigrationId).HasMaxLength(150);
             entity.Property(e => e.ProductVersion).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<Employeehistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("employeehistory");
+
+            entity.HasIndex(e => e.WorkerId, "WorkerId");
+
+            entity.HasIndex(e => e.MarkZoneId, "employeehistory_MarkZoneId");
+
+            entity.Property(e => e.ArrivalTime).HasColumnType("datetime");
+            entity.Property(e => e.LeaveTime).HasColumnType("datetime");
+            entity.Property(e => e.MarkTime).HasColumnType("datetime");
+
+            entity.HasOne(d => d.MarkZone).WithMany(p => p.Employeehistories)
+                .HasForeignKey(d => d.MarkZoneId)
+                .HasConstraintName("employeehistory_MarkZoneId");
+
+            entity.HasOne(d => d.Worker).WithMany(p => p.Employeehistories)
+                .HasForeignKey(d => d.WorkerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("employeehistory_ibfk_1");
         });
 
         modelBuilder.Entity<Holiday>(entity =>
@@ -110,6 +136,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.PermissibleLateTimeStart)
                 .HasDefaultValueSql("'00:30:00'")
                 .HasColumnType("time");
+            entity.Property(e => e.PermissionToLateTime).HasColumnType("time");
         });
 
         modelBuilder.Entity<Scheduleday>(entity =>

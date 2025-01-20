@@ -32,7 +32,7 @@ public partial class SchedulerView : UserControl, INotifyPropertyChanged
 
     private void UpdateSchedules()
     {
-        var schedules = _unitOfWork.ScheduleRepository.GetAllAsync()
+        var schedules = _unitOfWork.ScheduleRepository.GetAll()
             .Include(sh => sh.Scheduledays)
             .Where(w => w.DeletedAt == null)
             .AsNoTracking()
@@ -64,7 +64,7 @@ public partial class SchedulerView : UserControl, INotifyPropertyChanged
 
         if (result == MessageBoxResult.Yes)
         {
-            var currentSchedule = _unitOfWork.ScheduleRepository.GetAllAsync()
+            var currentSchedule = _unitOfWork.ScheduleRepository.GetAll()
                 .FirstOrDefault(o => o.Id == schedule.Id);
             if (currentSchedule is not null)
             {

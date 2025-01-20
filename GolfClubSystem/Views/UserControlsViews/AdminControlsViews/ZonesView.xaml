@@ -78,7 +78,6 @@
                         </DataGrid.CellStyle>
 
                         <DataGrid.Columns>
-                            <!-- ID Column -->
                             <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="Auto">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -88,7 +87,6 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Full Name Column -->
                             <DataGridTextColumn Header="Название" Binding="{Binding Name}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -98,7 +96,6 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Job Title Column -->
                             <DataGridTextColumn Header="IP входа" Binding="{Binding EnterIp}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -108,7 +105,6 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Mobile Column -->
                             <DataGridTextColumn Header="IP выхода" Binding="{Binding ExitIp}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -118,7 +114,6 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Telegram Username Column -->
                             <DataGridTextColumn Header="Логин" Binding="{Binding Login}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
@@ -128,7 +123,6 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <!-- Actions Column -->
                             <DataGridTemplateColumn Header="Действия" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

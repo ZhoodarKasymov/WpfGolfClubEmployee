@@ -83,7 +83,7 @@ namespace GolfClubSystem.ViewModels
 
         private void UpdateNodes()
         {
-            var organizations = BuildHierarchy(_unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).ToList());
+            var organizations = BuildHierarchy(_unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList());
             Nodes = organizations;
             OnPropertyChanged(nameof(Nodes));
         }
@@ -123,7 +123,7 @@ namespace GolfClubSystem.ViewModels
                     case NodeType.AddNode:
                     {
                         var existNode = FindNodeRecursive(Nodes, NewOrganizationName);
-                        var existInDb = _unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).Any(o => o.Name == NewOrganizationName);
+                        var existInDb = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).Any(o => o.Name == NewOrganizationName);
 
                         if (existNode is not null || existInDb)
                         {
@@ -139,7 +139,7 @@ namespace GolfClubSystem.ViewModels
                     case NodeType.AddSubNode:
                     {
                         var existNode = FindNodeRecursive(Nodes, NewOrganizationName);
-                        var existInDb = _unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).Any(o => o.Name == NewOrganizationName);
+                        var existInDb = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).Any(o => o.Name == NewOrganizationName);
 
                         if (existNode is not null || existInDb)
                         {
@@ -147,7 +147,7 @@ namespace GolfClubSystem.ViewModels
                             return;
                         }
                         
-                        var selectedOrg = _unitOfWork.OrganizationRepository.GetAllAsync().FirstOrDefault(o => o.Name == SelectedNode.Name);
+                        var selectedOrg = _unitOfWork.OrganizationRepository.GetAll().FirstOrDefault(o => o.Name == SelectedNode.Name);
                         SelectedNode.Nodes.Add(new Node { Name = NewOrganizationName });
                         selectedOrg?.InverseParentOrganization.Add(new Organization{ Name = NewOrganizationName });
                         
@@ -155,8 +155,8 @@ namespace GolfClubSystem.ViewModels
                     }
                     case NodeType.EditNode:
                     {
-                        var selectedOrg = _unitOfWork.OrganizationRepository.GetAllAsync().FirstOrDefault(o => o.Name == SelectedNode.Name);
-                        var existInDb = _unitOfWork.OrganizationRepository.GetAllAsync().Any(o => o.Name == NewOrganizationName);
+                        var selectedOrg = _unitOfWork.OrganizationRepository.GetAll().FirstOrDefault(o => o.Name == SelectedNode.Name);
+                        var existInDb = _unitOfWork.OrganizationRepository.GetAll().Any(o => o.Name == NewOrganizationName);
 
                         if (existInDb)
                         {
@@ -220,7 +220,7 @@ namespace GolfClubSystem.ViewModels
 
             if (result == MessageBoxResult.Yes)
             {
-                var selectedOrg = _unitOfWork.OrganizationRepository.GetAllAsync().Where(o => o.DeletedAt == null).FirstOrDefault(o => o.Name == node.Name);
+                var selectedOrg = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).FirstOrDefault(o => o.Name == node.Name);
                 if (selectedOrg is not null)
                 {
                     MarkAsDeleted(selectedOrg);
@@ -255,7 +255,7 @@ namespace GolfClubSystem.ViewModels
         {
             if (node == null) return;
             
-            var selectedOrg = _unitOfWork.OrganizationRepository.GetAllAsync()
+            var selectedOrg = _unitOfWork.OrganizationRepository.GetAll()
                 .Where(o => o.DeletedAt == null)
                 .Include(o => o.Workers.Where(w => w.DeletedAt == null))
                 .ThenInclude(w => w.Zone)
