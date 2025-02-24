@@ -6,8 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
-using GolfClubSystem.Services;
-using GolfClubSystem.Views.WorkersWindow;
 using Microsoft.EntityFrameworkCore;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
@@ -20,14 +18,12 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
     
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
-    public ICommand ShowCommand { get; }
     
     public ZonesView()
     {
         InitializeComponent();
         EditCommand = new RelayCommand<Zone>(OnEdit);
         DeleteCommand = new RelayCommand<Zone>(OnDelete);
-        // ShowCommand = new RelayCommand<Zone>(OnShow);
         UpdateZones();
         DataContext = this;
     }
@@ -73,12 +69,6 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
             }
         }
     }
-    
-    // private void OnShow(Worker worker)
-    // {
-    //     var window = new AddEditZoneWindow(worker, false);
-    //     window.ShowDialog();
-    // }
     
     
     private void OnPropertyChanged([CallerMemberName] string propertyName = "")

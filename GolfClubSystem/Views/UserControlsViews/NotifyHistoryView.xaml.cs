@@ -11,23 +11,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GolfClubSystem.Views.UserControlsViews
 {
-    public class Item
+    public partial class NotifyHistoryView : UserControl, INotifyPropertyChanged
     {
-        public string Name { get; set; }
-        public int Id { get; set; }
-    }
-
-    public partial class HistoryView : UserControl, INotifyPropertyChanged
-    {
-        public ObservableCollection<Employeehistory> Histories { get; set; }
+        public ObservableCollection<NotifyHistory> Histories { get; set; }
         public List<Organization> Organizations { get; set; }
 
         public List<Item> Statuses { get; set; } = new()
         {
-            new() { Name = "Пришел", Id = 1 },
-            new() { Name = "Опоздал", Id = 3 },
-            new() { Name = "Не пришел", Id = 2 },
-            new() { Name = "Ушел пораньше", Id = 4 }
+            new() { Name = "Отметка", Id = 1 },
+            new() { Name = "Запрос", Id = 2 }
         };
 
         private readonly UnitOfWork _unitOfWork = new();
@@ -58,7 +50,7 @@ namespace GolfClubSystem.Views.UserControlsViews
             }
         }
 
-        public HistoryView()
+        public NotifyHistoryView()
         {
             InitializeComponent();
             TodayFilter.Background = new SolidColorBrush(Color.FromRgb(46, 87, 230));
@@ -72,9 +64,8 @@ namespace GolfClubSystem.Views.UserControlsViews
 
         private void ApplyFilters()
         {
-            var filteredHistories = _unitOfWork.HistoryRepository
+            var filteredHistories = _unitOfWork.NotifyHistoryRepository
                 .GetAll()
-                .Include(h => h.MarkZone)
                 .Include(h => h.Worker)
                 .ThenInclude(w => w.Organization)
                 .Include(h => h.Worker)
@@ -120,11 +111,10 @@ namespace GolfClubSystem.Views.UserControlsViews
                 .ToList();
 
             // Update ObservableCollection
-            Histories = new ObservableCollection<Employeehistory>(pagedHistories);
+            Histories = new ObservableCollection<NotifyHistory>(pagedHistories);
             OnPropertyChanged(nameof(Histories));
             PageNumberText.Text = _currentPage.ToString();
             
-            // Update button states
             IsPreviousPageEnabled = _currentPage > 1;
             IsNextPageEnabled = (_currentPage * PageSize) < total;
         }
@@ -241,9 +231,9 @@ namespace GolfClubSystem.Views.UserControlsViews
                 var commandProperty = vm.GetType().GetProperty("NavigateCommand");
                 if (commandProperty != null)
                 {
-                    if (commandProperty.GetValue(vm) is ICommand navigateCommand && navigateCommand.CanExecute("History"))
+                    if (commandProperty.GetValue(vm) is ICommand navigateCommand && navigateCommand.CanExecute("NotifyHistory"))
                     {
-                        navigateCommand.Execute("History");
+                        navigateCommand.Execute("NotifyHistory");
                     }
                 }
             }

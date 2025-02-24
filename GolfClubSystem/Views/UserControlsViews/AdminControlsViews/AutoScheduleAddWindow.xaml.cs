@@ -2,20 +2,18 @@
 using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Views.MainWindows;
+using GolfClubSystem.Views.WorkersWindow;
 using Microsoft.EntityFrameworkCore;
 
-namespace GolfClubSystem.Views.MainWindows
+namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
 {
-    public class PercentItem
-    {
-        public int Value { get; set; }
-    }
-
-    public partial class SendNotifyWindow : Window, INotifyPropertyChanged
+    public partial class AutoScheduleAddWindow : Window, INotifyPropertyChanged
     {
         private readonly UnitOfWork _unitOfWork = new();
         public ObservableCollection<Worker> Workers { get; set; } = new();
@@ -23,6 +21,11 @@ namespace GolfClubSystem.Views.MainWindows
         public List<Zone> Zones { get; set; }
 
         private Organization? _organization;
+        
+        public NotifyJob Job { get; set; }
+        public WorkerType JobType { get; set; }
+        
+        public List<Schedule> Schedules { get; set; }
 
         public Organization? Organization
         {
@@ -120,6 +123,18 @@ namespace GolfClubSystem.Views.MainWindows
                 IsWorkersVisible = _selectedPercent == null;
             }
         }
+        
+        private TimeOnly? _time;
+
+        public TimeOnly? Time
+        {
+            get => _time;
+            set
+            {
+                _time = value;
+                OnPropertyChanged();
+            }
+        }
 
         private bool _isWorkersVisible = true;
 
@@ -129,12 +144,24 @@ namespace GolfClubSystem.Views.MainWindows
             set => SetField(ref _isWorkersVisible, value);
         }
 
-        public SendNotifyWindow()
+        public AutoScheduleAddWindow(NotifyJob? job)
         {
             InitializeComponent();
             DataContext = this;
             Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
             Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+            Schedules = _unitOfWork.ScheduleRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+            
+            if (job is not null)
+            {
+                Job = job;
+                JobType = WorkerType.Edit;
+            }
+            else
+            {
+                Job = new NotifyJob();
+                JobType = WorkerType.Add;
+            }
         }
 
         private void FilterItems()
@@ -196,11 +223,9 @@ namespace GolfClubSystem.Views.MainWindows
             return true;
         }
 
-        private async void SendNotification_OnClick(object sender, RoutedEventArgs e)
+        private async void Submit(object sender, RoutedEventArgs e)
         {
             List<Worker> selectedWorkers;
-            List<NotifyHistory> notifyHistory = [];
-            List<NotifyHistory> notifyHistoryExist = [];
 
             if (SelectedPercent != null)
             {
@@ -233,43 +258,33 @@ namespace GolfClubSystem.Views.MainWindows
             if (selectedWorkers.Count == 0)
             {
                 MessageBox.Show("Работники не найденны!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
-            foreach (var worker in selectedWorkers)
+            var shiftIsExist = _unitOfWork.NotifyJobRepository.GetAll().Any(s => s.ShiftId == Job.ShiftId);
+            var countJob = _unitOfWork.NotifyJobRepository.GetAll().Count();
+
+            if (shiftIsExist)
             {
-                await ((App)Application.Current)._telegramService.SendMessageByUsernameAsync(worker.Id, Description);
-                
-                var existNotifyHistory = await _unitOfWork.NotifyHistoryRepository.GetAll(true)
-                    .FirstOrDefaultAsync(h => h.ArrivalTime.Date == DateTime.Now.Date);
-
-                if (existNotifyHistory != null)
-                {
-                    existNotifyHistory.Status = 2;
-                    existNotifyHistory.ArrivalTime = DateTime.Now;
-                    notifyHistoryExist.Add(existNotifyHistory);
-                }
-                else
-                {
-                    notifyHistory.Add(new NotifyHistory
-                    {
-                        ArrivalTime = DateTime.Now,
-                        WorkerId = worker.Id,
-                        Status = 2
-                    });
-                }
+                MessageBox.Show("Авто запрос на такое рассписание уже существует", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
-
-            if (notifyHistory.Any())
+            if (countJob > 2)
             {
-                await _unitOfWork.NotifyHistoryRepository.AddRangeAsync(notifyHistory);
+                MessageBox.Show("Нельзя больше 2 авто уведомлений создать", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
-            if (notifyHistoryExist.Any())
+            await _unitOfWork.NotifyJobRepository.AddAsync(new NotifyJob
             {
-                await _unitOfWork.NotifyHistoryRepository.UpdateRangeAsync(notifyHistoryExist);
-            }
+                OrganizationId = Organization?.Id,
+                ZoneId = Zone?.Id,
+                Message = Description,
+                ShiftId = Job.ShiftId,
+                Percentage = SelectedPercent?.Value,
+                WorkerIds = JsonSerializer.Serialize(selectedWorkers.Select(w => w.Id).ToList())
+            });
             
-            MessageBox.Show("Запрос отправлен", "Успех", MessageBoxButton.OK, MessageBoxImage.None);
             Close();
         }
 

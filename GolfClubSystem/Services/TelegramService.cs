@@ -7,7 +7,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace GolfClubSystem.Services;
 
-public class TelegramService
+public class TelegramService : IDisposable
 {
     private readonly TelegramBotClient _botClient;
     private readonly UnitOfWork _unitOfWork;
@@ -119,5 +119,10 @@ public class TelegramService
         {
             Log.Information($"Работник с ID:{workerId} не найден для отправки запроса");
         }
+    }
+
+    public void Dispose()
+    {
+        _unitOfWork.Dispose();
     }
 }

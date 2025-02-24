@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using GolfClubSystem.Data.Migrations;
+﻿using System.Windows;
 using GolfClubSystem.Models;
 using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
+using Microsoft.Extensions.Configuration;
 
 namespace GolfClubSystem.Context;
 
@@ -18,11 +16,13 @@ public partial class MyDbContext : DbContext
     {
     }
 
-    public virtual DbSet<Efmigrationshistory> Efmigrationshistories { get; set; }
-
     public virtual DbSet<Employeehistory> Employeehistories { get; set; }
 
     public virtual DbSet<Holiday> Holidays { get; set; }
+
+    public virtual DbSet<NotifyHistory> NotifyHistories { get; set; }
+
+    public virtual DbSet<NotifyJob> NotifyJobs { get; set; }
 
     public virtual DbSet<Organization> Organizations { get; set; }
 
@@ -37,24 +37,17 @@ public partial class MyDbContext : DbContext
     public virtual DbSet<Zone> Zones { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseMySql("server=localhost;database=golf-club-db;user=root;password=123456", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.37-mysql"));
+    {
+        var configuration = ((App)Application.Current)._configuration;
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        optionsBuilder.UseMySql(connectionString, ServerVersion.Parse("8.0.37-mysql"));
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
             .UseCollation("utf8mb4_0900_ai_ci")
             .HasCharSet("utf8mb4");
-
-        modelBuilder.Entity<Efmigrationshistory>(entity =>
-        {
-            entity.HasKey(e => e.MigrationId).HasName("PRIMARY");
-
-            entity.ToTable("__efmigrationshistory");
-
-            entity.Property(e => e.MigrationId).HasMaxLength(150);
-            entity.Property(e => e.ProductVersion).HasMaxLength(32);
-        });
 
         modelBuilder.Entity<Employeehistory>(entity =>
         {
@@ -91,10 +84,77 @@ public partial class MyDbContext : DbContext
             entity.HasIndex(e => e.Id, "Id").IsUnique();
 
             entity.Property(e => e.Description).HasMaxLength(255);
+            entity.Property(e => e.HolidayDate).HasColumnType("datetime");
 
             entity.HasOne(d => d.Schedule).WithMany(p => p.Holidays)
                 .HasForeignKey(d => d.ScheduleId)
                 .HasConstraintName("FK_Holiday_Schedule_Id");
+        });
+
+        modelBuilder.Entity<NotifyHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("notify_history");
+
+            entity.HasIndex(e => e.WorkerId, "notify_history_ibfk_1");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ArrivalTime)
+                .HasColumnType("datetime")
+                .HasColumnName("arrival_time");
+            entity.Property(e => e.MarkTime)
+                .HasColumnType("datetime")
+                .HasColumnName("mark_time");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.WorkerId).HasColumnName("worker_id");
+
+            entity.HasOne(d => d.Worker).WithMany(p => p.NotifyHistories)
+                .HasForeignKey(d => d.WorkerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("notify_history_ibfk_1");
+        });
+
+        modelBuilder.Entity<NotifyJob>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PRIMARY");
+
+            entity.ToTable("notify_jobs");
+
+            entity.HasIndex(e => e.ShiftId, "notify_jobs_ShiftId");
+
+            entity.HasIndex(e => e.ZoneId, "notify_jobs_ZoneId");
+
+            entity.HasIndex(e => e.OrganizationId, "notify_jobs_org_id_ibfk_1");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Message)
+                .HasMaxLength(255)
+                .HasColumnName("message");
+            entity.Property(e => e.OrganizationId).HasColumnName("organization_id");
+            entity.Property(e => e.Percentage)
+                .HasPrecision(5, 2)
+                .HasColumnName("percentage");
+            entity.Property(e => e.ShiftId).HasColumnName("shift_id");
+            entity.Property(e => e.Time)
+                .HasColumnType("time")
+                .HasColumnName("time");
+            entity.Property(e => e.WorkerIds)
+                .HasColumnType("json")
+                .HasColumnName("worker_ids");
+            entity.Property(e => e.ZoneId).HasColumnName("zone_id");
+
+            entity.HasOne(d => d.Organization).WithMany(p => p.NotifyJobs)
+                .HasForeignKey(d => d.OrganizationId)
+                .HasConstraintName("notify_jobs_org_id_ibfk_1");
+
+            entity.HasOne(d => d.Shift).WithMany(p => p.NotifyJobs)
+                .HasForeignKey(d => d.ShiftId)
+                .HasConstraintName("notify_jobs_ShiftId");
+
+            entity.HasOne(d => d.Zone).WithMany(p => p.NotifyJobs)
+                .HasForeignKey(d => d.ZoneId)
+                .HasConstraintName("notify_jobs_ZoneId");
         });
 
         modelBuilder.Entity<Organization>(entity =>
@@ -124,18 +184,10 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.BreakStart).HasColumnType("time");
             entity.Property(e => e.DeletedAt).HasColumnType("datetime");
             entity.Property(e => e.Name).HasMaxLength(255);
-            entity.Property(e => e.PermissibleEarlyLeaveEnd)
-                .HasDefaultValueSql("'00:30:00'")
-                .HasColumnType("time");
-            entity.Property(e => e.PermissibleEarlyLeaveStart)
-                .HasDefaultValueSql("'00:30:00'")
-                .HasColumnType("time");
-            entity.Property(e => e.PermissibleLateTimeEnd)
-                .HasDefaultValueSql("'00:30:00'")
-                .HasColumnType("time");
-            entity.Property(e => e.PermissibleLateTimeStart)
-                .HasDefaultValueSql("'00:30:00'")
-                .HasColumnType("time");
+            entity.Property(e => e.PermissibleEarlyLeaveEnd).HasColumnType("time");
+            entity.Property(e => e.PermissibleEarlyLeaveStart).HasColumnType("time");
+            entity.Property(e => e.PermissibleLateTimeEnd).HasColumnType("time");
+            entity.Property(e => e.PermissibleLateTimeStart).HasColumnType("time");
             entity.Property(e => e.PermissionToLateTime).HasColumnType("time");
         });
 
@@ -209,6 +261,7 @@ public partial class MyDbContext : DbContext
             entity.Property(e => e.ExitIp).HasMaxLength(255);
             entity.Property(e => e.Login).HasMaxLength(255);
             entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.NotifyIp).HasMaxLength(255);
             entity.Property(e => e.Password).HasMaxLength(255);
         });
 

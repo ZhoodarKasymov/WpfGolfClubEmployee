@@ -6,32 +6,36 @@ namespace GolfClubSystem.Data;
 
 public class UnitOfWork : IDisposable
 {
-    private readonly MyDbContext _context;
+    public readonly MyDbContext Context;
     public GenericRepository<User> UserRepository { get; }
     public GenericRepository<Worker> WorkerRepository { get; }
     public GenericRepository<Organization> OrganizationRepository { get; }
     public GenericRepository<Zone> ZoneRepository { get; }
     public GenericRepository<Schedule> ScheduleRepository { get; }
     public GenericRepository<Employeehistory> HistoryRepository { get; }
+    public GenericRepository<NotifyHistory> NotifyHistoryRepository { get; }
+    public GenericRepository<NotifyJob> NotifyJobRepository { get; }
 
     public UnitOfWork()
     {
-        _context = new AppDbContextFactory().CreateDbContext([]);
-        UserRepository = new GenericRepository<User>(_context);
-        WorkerRepository = new GenericRepository<Worker>(_context);
-        OrganizationRepository = new GenericRepository<Organization>(_context);
-        ZoneRepository = new GenericRepository<Zone>(_context);
-        ScheduleRepository = new GenericRepository<Schedule>(_context);
-        HistoryRepository = new GenericRepository<Employeehistory>(_context);
+        Context = new AppDbContextFactory().CreateDbContext([]);
+        UserRepository = new GenericRepository<User>(Context);
+        WorkerRepository = new GenericRepository<Worker>(Context);
+        OrganizationRepository = new GenericRepository<Organization>(Context);
+        ZoneRepository = new GenericRepository<Zone>(Context);
+        ScheduleRepository = new GenericRepository<Schedule>(Context);
+        HistoryRepository = new GenericRepository<Employeehistory>(Context);
+        NotifyHistoryRepository = new GenericRepository<NotifyHistory>(Context);
+        NotifyJobRepository = new GenericRepository<NotifyJob>(Context);
     }
 
     public async Task SaveAsync()
     {
-        await _context.SaveChangesAsync();
+        await Context.SaveChangesAsync();
     }
 
     public void Dispose()
     {
-        _context.Dispose();
+        Context.Dispose();
     }
 }

@@ -57,6 +57,9 @@ public class HRViewModel : INotifyPropertyChanged
             case "Organizations":
                 CurrentView = new OrganizationsView();
                 break;
+            case "NotifyHistory":
+                CurrentView = new NotifyHistoryView();
+                break;
         }
     }
 

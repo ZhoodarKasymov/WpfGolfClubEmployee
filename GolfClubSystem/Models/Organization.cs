@@ -15,4 +15,5 @@ public partial class Organization
     public virtual Organization? ParentOrganization { get; set; }
 
     public virtual ICollection<Worker> Workers { get; set; } = new List<Worker>();
+    public virtual ICollection<NotifyJob> NotifyJobs { get; set; } = new List<NotifyJob>();
 }

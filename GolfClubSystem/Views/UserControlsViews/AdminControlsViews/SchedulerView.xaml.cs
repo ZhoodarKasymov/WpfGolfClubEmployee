@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
-using GolfClubSystem.Views.WorkersWindow;
 using Microsoft.EntityFrameworkCore;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
@@ -19,7 +18,6 @@ public partial class SchedulerView : UserControl, INotifyPropertyChanged
     
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
-    public ICommand ShowCommand { get; }
     
     public SchedulerView()
     {
@@ -34,6 +32,7 @@ public partial class SchedulerView : UserControl, INotifyPropertyChanged
     {
         var schedules = _unitOfWork.ScheduleRepository.GetAll()
             .Include(sh => sh.Scheduledays)
+            .Include(sh => sh.Holidays)
             .Where(w => w.DeletedAt == null)
             .AsNoTracking()
             .ToList();

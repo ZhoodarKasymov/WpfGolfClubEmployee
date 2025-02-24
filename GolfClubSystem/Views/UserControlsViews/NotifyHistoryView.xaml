@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="GolfClubSystem.Views.UserControlsViews.HistoryView"
+﻿<UserControl x:Class="GolfClubSystem.Views.UserControlsViews.NotifyHistoryView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
@@ -19,7 +19,7 @@
 
                 <!-- Header -->
                 <StackPanel Grid.Column="0" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,0,0,16">
-                    <TextBlock Text="История по сотрудникам" FontSize="25" FontWeight="Medium"
+                    <TextBlock Text="История запросов" FontSize="25" FontWeight="Medium"
                                Foreground="{DynamicResource MaterialDesignBody}" />
                     <Button
                         Click="ReloadButton_click"
@@ -198,10 +198,7 @@
                                             <Ellipse Width="10" Height="10" Margin="5,4,3,0"
                                                      Fill="{Binding StatusColor}" />
                                             <!-- Full Name -->
-                                            <TextBlock Text="{Binding Worker.FullName}" 
-                                                       TextWrapping="Wrap" 
-                                                       TextTrimming="CharacterEllipsis"
-                                                       VerticalAlignment="Center"/> 
+                                            <TextBlock Text="{Binding Worker.FullName}" TextWrapping="Wrap" VerticalAlignment="Center" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
@@ -227,7 +224,7 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
 
-                            <DataGridTextColumn Header="Время прибытия"
+                            <DataGridTextColumn Header="Время запроса"
                                                 Binding="{Binding ArrivalTime, StringFormat={}{0:dd/MM/yyyy HH:mm}}"
                                                 Width="*">
                                 <DataGridTextColumn.ElementStyle>
@@ -246,47 +243,9 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Рабочая зона" Binding="{Binding Worker.Zone.Name}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-
-                            <DataGridTextColumn Header="Время ухода"
-                                                Binding="{Binding LeaveTime, StringFormat={}{0:dd/MM/yyyy HH:mm}}"
-                                                Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-
                             <DataGridTextColumn Header="Время отметки"
                                                 Binding="{Binding MarkTime, StringFormat={}{0:dd/MM/yyyy HH:mm}}"
                                                 Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-
-                            <DataGridTextColumn Header="Зона отметки" Binding="{Binding MarkZone.Name}" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
-
-                            <DataGridTextColumn Header="Рабочие часы" Binding="{Binding WorkTimeText}" Width="*">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="VerticalAlignment" Value="Center" />
@@ -325,9 +284,9 @@
                             Width="77"
                             Height="30"
                             FontSize="13"
+                            IsEnabled="{Binding IsNextPageEnabled}"
                             materialDesign:ButtonAssist.CornerRadius="8"
                             Content="Вперед"
-                            IsEnabled="{Binding IsNextPageEnabled}"
                             Click="NextPage_Click" />
                     </StackPanel>
                 </StackPanel>

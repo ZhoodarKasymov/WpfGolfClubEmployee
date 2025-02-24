@@ -10,9 +10,14 @@
                                              ColorAdjustment="{materialDesign:ColorAdjustment}"
                                              PrimaryColor="Grey"
                                              SecondaryColor="Teal" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ObsoleteBrushes.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.ObsoleteBrushes.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
             </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="{x:Type Control}">
+                <Setter Property="FontFamily" Value="Fonts/SF-Pro-Display-Regular.ttf#SfPro" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

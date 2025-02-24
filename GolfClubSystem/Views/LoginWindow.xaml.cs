@@ -13,12 +13,18 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
         _unitOfWork = new UnitOfWork();
-        this.DataContext = new LoginViewModel();
+        DataContext = new LoginViewModel();
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        _unitOfWork.Dispose();
+    }
+ 
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
     {
-        var viewModel = (LoginViewModel)this.DataContext;
+        var viewModel = (LoginViewModel)DataContext;
         
         if (string.IsNullOrWhiteSpace(viewModel.Username) || string.IsNullOrWhiteSpace(viewModel.Password))
         {

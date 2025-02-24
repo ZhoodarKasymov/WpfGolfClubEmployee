@@ -36,19 +36,22 @@
                         <TextBlock Text="ФИО*" FontSize="14" Margin="0,5,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите ФИО"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
-                                 Text="{Binding Worker.FullName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding Worker.FullName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                 ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
 
-                        <TextBlock Text="Номер пропускной карты" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Номер пропускной карты" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите номер пропускной карты"
+                                 PreviewTextInput="NumberTextBox_PreviewTextInput"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
                                  Text="{Binding Worker.CardNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <TextBlock Text="Должность" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Должность" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите должность"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
-                                 Text="{Binding Worker.JobTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding Worker.JobTitle, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                 ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
 
-                        <TextBlock Text="Организация" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Организация" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <ComboBox
                             IsEnabled="{Binding IsEnable}"
                             materialDesign:HintAssist.Hint="Выберите организацию"
@@ -58,20 +61,23 @@
                             DisplayMemberPath="Name"
                             SelectedValuePath="Id"
                             ItemsSource="{Binding Organizations}"
-                            SelectedValue="{Binding Worker.OrganizationId, Mode=TwoWay}"/>
+                            SelectedValue="{Binding Worker.OrganizationId, Mode=TwoWay,
+                            ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
                         
-                        <TextBlock Text="Номер телефона" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Номер телефона" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите номер телефона"
                                  PreviewTextInput="PhoneNumberTextBox_PreviewTextInput"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
-                                 Text="{Binding Worker.Mobile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding Worker.Mobile, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                 ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
                         
-                        <TextBlock Text="Telegram аккаунт" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Telegram аккаунт" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите телеграмм аккаунт"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
-                                 Text="{Binding Worker.TelegramUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                 Text="{Binding Worker.TelegramUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                 ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
                         
-                        <TextBlock Text="Дополнительный номер телефона" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Дополнительный номер телефона" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <TextBox IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Введите номер телефона"
                                  PreviewTextInput="PhoneNumberTextBox_PreviewTextInput"
                                  Style="{StaticResource MaterialDesignOutlinedTextBox}" Height="50"
@@ -82,13 +88,15 @@
                     <StackPanel Grid.Row="0" Grid.Column="1" Margin="20,0,0,0">
                         <TextBlock  Text="Срок начала действия пропуска*" FontSize="14" Margin="0,0,0,0" Foreground="#8b8494" />
                         <DatePicker IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Укажите начала действия пропуска" Style="{StaticResource MaterialDesignOutlinedDatePicker}" Height="50" Margin="0,5"
-                                    Text="{Binding Worker.StartWork, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    Text="{Binding Worker.StartWork, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                    ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
 
-                        <TextBlock Text="Срок конца действия пропуска*" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Срок конца действия пропуска*" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <DatePicker IsEnabled="{Binding IsEnable}" materialDesign:HintAssist.Hint="Укажите срок конца действия пропуска" Style="{StaticResource MaterialDesignOutlinedDatePicker}" Height="50" Margin="0,5" 
-                                    Text="{Binding Worker.EndWork, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    Text="{Binding Worker.EndWork, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged,
+                                    ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
 
-                        <TextBlock Text="Зона пропуска" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Зона пропуска" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <ComboBox
                             IsEnabled="{Binding IsEnable}"
                             materialDesign:HintAssist.Hint="Выберите зону пропуска"
@@ -98,9 +106,10 @@
                             DisplayMemberPath="Name"
                             SelectedValuePath="Id"
                             ItemsSource="{Binding Zones}"
-                            SelectedValue="{Binding Worker.ZoneId, Mode=TwoWay}"/>
+                            SelectedValue="{Binding Worker.ZoneId, Mode=TwoWay,
+                            ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
                         
-                        <TextBlock Text="Расписание" FontSize="14" Margin="0,10,0,5" Foreground="#8b8494" />
+                        <TextBlock Text="Расписание" FontSize="14" Margin="0,20,0,5" Foreground="#8b8494" />
                         <ComboBox
                             IsEnabled="{Binding IsEnable}"
                             materialDesign:HintAssist.Hint="Выберите расписание"
@@ -110,7 +119,8 @@
                             DisplayMemberPath="Name"
                             SelectedValuePath="Id"
                             ItemsSource="{Binding Schedules}"
-                            SelectedValue="{Binding Worker.ScheduleId, Mode=TwoWay}"/>
+                            SelectedValue="{Binding Worker.ScheduleId, Mode=TwoWay,
+                            ValidatesOnDataErrors=true, NotifyOnValidationError=true}"/>
 
                         <!-- Image Upload Section -->
                         <Border Background="#fafafa" HorizontalAlignment="Left" CornerRadius="8" Padding="20" Width="550" Height="auto" Margin="0,20,0,0">
@@ -145,7 +155,7 @@
                 <!-- Footer Buttons -->
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                     <Button Content="Сохранить"
-                            IsEnabled="{Binding IsEnable}"
+                            IsEnabled="{Binding Worker.HasError, UpdateSourceTrigger=PropertyChanged}"
                             Click="ButtonBase_OnClick"
                             Style="{StaticResource MaterialDesignRaisedButton}" Background="#2b54e6" Foreground="White" Width="200" Height="40" Margin="10,0" />
                 </StackPanel>

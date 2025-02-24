@@ -16,11 +16,12 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Logo -->
-                <Image Source="/Images/golf-club-logo.png" VerticalAlignment="Center" Width="70" Height="70" />
+                <Image Source="/Images/golf-club-logo.png" Stretch="Fill" VerticalAlignment="Center" Width="60" Height="55" />
 
                 <!-- Navigation Links -->
                 <StackPanel Grid.Column="1" HorizontalAlignment="Stretch" Margin="25, 5, 5, 5" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="Главный экран"
+                            materialDesign:ButtonAssist.CornerRadius="8"
                             Command="{Binding NavigateCommand}"
                             CommandParameter="Main">
                         <Button.Style>
@@ -37,6 +38,7 @@
                         </Button.Style>
                     </Button>
                     <Button Content="История"
+                            materialDesign:ButtonAssist.CornerRadius="8"
                             Command="{Binding NavigateCommand}"
                             CommandParameter="History">
                         <Button.Style>
@@ -53,6 +55,7 @@
                         </Button.Style>
                     </Button>
                     <Button Content="Сотрудники"
+                            materialDesign:ButtonAssist.CornerRadius="8"
                             Command="{Binding NavigateCommand}"
                             CommandParameter="Workers">
                         <Button.Style>
@@ -69,6 +72,7 @@
                         </Button.Style>
                     </Button>
                     <Button Content="Организации"
+                            materialDesign:ButtonAssist.CornerRadius="8"
                             Command="{Binding NavigateCommand}"
                             CommandParameter="Organizations">
                         <Button.Style>
@@ -76,6 +80,23 @@
                                 <Style.Triggers>
                                     <!-- Trigger to apply when activeView is "Main" -->
                                     <DataTrigger Binding="{Binding ActiveView}" Value="Organizations">
+                                        <Setter Property="Foreground" Value="Black" />
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Background" Value="#d9dff4" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="История запросов"
+                            materialDesign:ButtonAssist.CornerRadius="8"
+                            Command="{Binding NavigateCommand}"
+                            CommandParameter="NotifyHistory">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource MaterialDesignFlatButton}">
+                                <Style.Triggers>
+                                    <!-- Trigger to apply when activeView is "Main" -->
+                                    <DataTrigger Binding="{Binding ActiveView}" Value="NotifyHistory">
                                         <Setter Property="Foreground" Value="Black" />
                                         <Setter Property="FontWeight" Value="Bold" />
                                         <Setter Property="Background" Value="#d9dff4" />

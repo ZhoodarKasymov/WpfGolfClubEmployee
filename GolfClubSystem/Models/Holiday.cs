@@ -6,7 +6,7 @@ public partial class Holiday
 
     public uint? ScheduleId { get; set; }
 
-    public DateOnly HolidayDate { get; set; }
+    public DateTime HolidayDate { get; set; }
 
     public string? Description { get; set; }
 

@@ -27,9 +27,9 @@ public partial class Employeehistory
     public string PathByStatus => Status switch
     {
         1 => "/Images/status_tittle.png",
-        2 => "/Images/notCame.png",
-        3 => "/Images/late.png",
-        4 => "/Images/earlyExit.png",
+        2 => "/Images/Property 1=Cancelled.png",
+        3 => "/Images/Property 1=Default.png",
+        4 => "/Images/Property-1.png",
         _ => ""
     };
     

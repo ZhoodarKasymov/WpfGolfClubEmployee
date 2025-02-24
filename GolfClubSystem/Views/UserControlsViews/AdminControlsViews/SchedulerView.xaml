@@ -19,7 +19,13 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Right" Margin="0,0,0,16">
-                    <Button HorizontalAlignment="Right" Background="#3a61e7" Foreground="White" Width="250"
+                    <Button HorizontalAlignment="Right"
+                            Background="#3a61e7"
+                            Foreground="White"
+                            Width="180"
+                            Height="35"
+                            FontSize="13"
+                            materialDesign:ButtonAssist.CornerRadius="8"
                             Content="+ Добавить расписание"
                             Click="AddScheduleCommand"
                             Margin="0,16,0,0" />
@@ -41,7 +47,7 @@
                         <DataGrid.Resources>
                             <!-- Style for DataGridColumnHeader -->
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
                                 <Setter Property="Foreground" Value="#8b8494" />
                                 <Setter Property="Background" Value="White" />
                                 <Setter Property="FontSize" Value="14" />
@@ -127,7 +133,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            
+
                             <DataGridTemplateColumn Header="Перерыв" Width="*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -146,7 +152,7 @@
                             <DataGridTemplateColumn Header="Допустимое время прихода" Width="*">
                                 <DataGridTemplateColumn.HeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Left" />
                                         <Setter Property="Foreground" Value="#8b8494" />
                                         <Setter Property="Background" Value="White" />
                                         <Setter Property="FontSize" Value="14" />
@@ -192,7 +198,7 @@
                             <DataGridTemplateColumn Header="Допустимое время ухода" Width="*">
                                 <DataGridTemplateColumn.HeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Left" />
                                         <Setter Property="Foreground" Value="#8b8494" />
                                         <Setter Property="Background" Value="White" />
                                         <Setter Property="FontSize" Value="14" />
@@ -234,11 +240,11 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            
+
                             <DataGridTemplateColumn Header="Опоздание до" Width="*">
                                 <DataGridTemplateColumn.HeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
-                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        <Setter Property="HorizontalContentAlignment" Value="Left" />
                                         <Setter Property="Foreground" Value="#8b8494" />
                                         <Setter Property="Background" Value="White" />
                                         <Setter Property="FontSize" Value="14" />
@@ -280,14 +286,25 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
-                            <DataGridTextColumn Header="Праздничные дни" Width="*">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="VerticalAlignment" Value="Center" />
-                                        <Setter Property="Padding" Value="5 0 5 0" />
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Праздничные дни" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ItemsControl ItemsSource="{Binding Holidays}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock VerticalAlignment="Center" Padding="5,0,5,0">
+                                                        <TextBlock.Text>
+                                                            <MultiBinding StringFormat="{}{0:dd/MM/yyyy}">
+                                                                <Binding Path="HolidayDate" />
+                                                            </MultiBinding>
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
                             <!-- Actions Column -->
                             <DataGridTemplateColumn Header="Действия" Width="Auto">

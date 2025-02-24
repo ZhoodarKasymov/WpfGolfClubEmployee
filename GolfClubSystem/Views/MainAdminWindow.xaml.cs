@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
-using GolfClubSystem.Views.UserControlsViews;
 using GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
 
 namespace GolfClubSystem.Views
@@ -44,6 +43,9 @@ namespace GolfClubSystem.Views
                     break;
                 case "Shedules":
                     CurrentView = new SchedulerView();
+                    break;
+                case "AutoSchedule":
+                    CurrentView = new AutoSchedulView();
                     break;
             }
         }

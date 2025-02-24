@@ -7,13 +7,14 @@ using AForge.Video.DirectShow;
 using Microsoft.Win32;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using GolfClubSystem.Data;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace GolfClubSystem.Views.WorkersWindow;
 
@@ -34,6 +35,7 @@ public partial class AddEditWorkerWindow : Window
 
 
     private readonly UnitOfWork _unitOfWork = new();
+    private readonly IConfigurationRoot _configuration = ((App)Application.Current)._configuration;
 
     public AddEditWorkerWindow(Worker? worker, bool isEnable = true)
     {
@@ -182,6 +184,8 @@ public partial class AddEditWorkerWindow : Window
                 videoSource = null; // This might help the video capture stop faster
             });
         }
+
+        _unitOfWork.Dispose();
     }
 
     private void PhoneNumberTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -226,6 +230,16 @@ public partial class AddEditWorkerWindow : Window
         }
     }
 
+    private void NumberTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = !IsTextAllowed(e.Text);
+    }
+
+    private static bool IsTextAllowed(string text)
+    {
+        return Regex.IsMatch(text, "^[0-9]+$");
+    }
+
     private async void ButtonBase_OnClick(object sender, RoutedEventArgs e)
     {
         if (WorkerPhoto.Source is null)
@@ -234,19 +248,24 @@ public partial class AddEditWorkerWindow : Window
             return;
         }
 
-        var zone = await _unitOfWork.ZoneRepository.GetAll()
-            .FirstOrDefaultAsync(z => z.DeletedAt == null && z.Id == Worker.ZoneId);
-        var terminalService = new TerminalService(zone.Login, zone.Password);
+        var zones = _unitOfWork.ZoneRepository.GetAll().Where(z => z.DeletedAt == null).ToList();
+
+        var ipAddress = _configuration.GetSection("IpAddressImage").Value;
+        var imagePath = _configuration.GetSection("ImagePath").Value;
 
         if (WorkerType == WorkerType.Add)
         {
-            var photoPath = SaveBitmapImage(WorkerPhoto.Source as BitmapImage);
+            var photoPath = SaveBitmapImage(ipAddress, WorkerPhoto.Source as BitmapImage, imagePath);
             Worker.PhotoPath = photoPath;
             await _unitOfWork.WorkerRepository.AddAsync(Worker);
-            await _unitOfWork.SaveAsync();
 
-            await UpdateAddTerminalEmployee(Worker, photoPath, zone.EnterIp);
-            await UpdateAddTerminalEmployee(Worker, photoPath, zone.ExitIp);
+            foreach (var zone in zones)
+            {
+                using var terminalService = new TerminalService(zone.Login, zone.Password);
+                await UpdateAddTerminalEmployee(terminalService, Worker, zone.EnterIp);
+                await UpdateAddTerminalEmployee(terminalService, Worker, zone.ExitIp);
+                await UpdateAddTerminalEmployee(terminalService, Worker, zone.NotifyIp);
+            }
         }
 
         if (WorkerType == WorkerType.Edit)
@@ -256,7 +275,7 @@ public partial class AddEditWorkerWindow : Window
 
             if (currentWorker is not null)
             {
-                var photoPath = SaveBitmapImage(WorkerPhoto.Source as BitmapImage);
+                var photoPath = SaveBitmapImage(ipAddress, WorkerPhoto.Source as BitmapImage, imagePath);
                 currentWorker.OrganizationId = Worker.OrganizationId;
                 currentWorker.ZoneId = Worker.ZoneId;
                 currentWorker.Mobile = Worker.Mobile;
@@ -270,18 +289,23 @@ public partial class AddEditWorkerWindow : Window
                 currentWorker.AdditionalMobile = Worker.AdditionalMobile;
                 currentWorker.PhotoPath = photoPath;
                 await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
-                await _unitOfWork.SaveAsync();
 
-                await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.EnterIp);
-                await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.ExitIp);
-                await UpdateAddTerminalEmployee(currentWorker, photoPath, zone.EnterIp);
-                await UpdateAddTerminalEmployee(currentWorker, photoPath, zone.ExitIp);
+                foreach (var zone in zones)
+                {
+                    using var terminalService = new TerminalService(zone.Login, zone.Password);
+                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.EnterIp);
+                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.ExitIp);
+                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.NotifyIp);
+                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.EnterIp);
+                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.ExitIp);
+                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.NotifyIp);
+                }
             }
         }
 
         Close();
 
-        async Task UpdateAddTerminalEmployee(Worker worker, string photoPath, string ip)
+        async Task UpdateAddTerminalEmployee(TerminalService terminalService, Worker worker, string ip)
         {
             var terminalUserAddedEnter = await terminalService.AddUserInfoAsync(worker, ip);
             if (terminalUserAddedEnter)
@@ -296,8 +320,13 @@ public partial class AddEditWorkerWindow : Window
         }
     }
 
-    public static string SaveBitmapImage(BitmapImage bitmapImage, string directoryPath = "C:\\Users\\user\\Downloads",
-        int maxSizeKB = 200)
+    public static string SaveBitmapImage
+    (
+        string ipAddress,
+        BitmapImage bitmapImage,
+        string directoryPath,
+        int maxSizeKB = 200
+    )
     {
         // Ensure the directory exists
         if (!Directory.Exists(directoryPath))
@@ -355,7 +384,7 @@ public partial class AddEditWorkerWindow : Window
         }
 
         // Return the URL to access the saved image
-        return $"http://192.168.0.2:8080/{fileName}";
+        return $"http://{ipAddress}/{fileName}";
     }
 
     // Helper method to get the JPEG encoder
