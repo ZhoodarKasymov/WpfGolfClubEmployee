@@ -40,7 +40,7 @@ public partial class LoginWindow : Window
 
         if (string.IsNullOrWhiteSpace(viewModel.Username) || string.IsNullOrWhiteSpace(viewModel.Password))
         {
-            MessageBox.Show("Заполните все поля перед входом.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", "Заполните все поля перед входом.").ShowDialog();
             return;
         }
         
@@ -66,7 +66,7 @@ public partial class LoginWindow : Window
                         hrWindow.Show();
                         break;
                     default:
-                        MessageBox.Show("Неизвестная роль пользователя.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                        new DialogWindow("Ошибка", "Неизвестная роль пользователя.").ShowDialog();
                         return;
                 }
 
@@ -74,16 +74,16 @@ public partial class LoginWindow : Window
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                MessageBox.Show("Неправильный логин или пароль!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", "Неправильный логин или пароль!").ShowDialog();
             }
             else
             {
-                MessageBox.Show("Ошибка при подключении к серверу.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", "Ошибка при подключении к серверу.").ShowDialog();
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Произошла ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Произошла ошибка: {ex.Message}").ShowDialog();
         }
         finally
         {

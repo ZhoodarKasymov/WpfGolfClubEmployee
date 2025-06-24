@@ -8,6 +8,7 @@ using System.Windows.Input;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
 using GolfClubSystem.Views.WorkersWindow;
+using MaterialDesignThemes.Wpf;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Serilog;
@@ -101,7 +102,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Ошибка загрузки организаций: {ex.Message}").ShowDialog();
             Organizations = [new Organization { Id = -1, Name = "Все" }];
         }
         finally
@@ -124,7 +125,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Ошибка загрузки зон: {ex.Message}").ShowDialog();
             Zones = [new Zone { Id = -1, Name = "Все" }];
         }
         finally
@@ -173,7 +174,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка загрузки работников: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Ошибка загрузки работников: {ex.Message}").ShowDialog();
             Workers = new ObservableCollection<Worker>();
             OnPropertyChanged(nameof(Workers));
             Log.Error($"Ошибка загрузки работников: {ex.Message}", ex);
@@ -216,10 +217,9 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
     private async void OnDelete(Worker worker)
     {
         if (worker == null) return;
-        var result = MessageBox.Show($"Вы уверены удалить работника: {worker.FullName}?", "Подтверждение",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить работника: {worker.FullName}?", "Да", "Нет").ShowDialog();
 
-        if (result == MessageBoxResult.Yes)
+        if (answer.HasValue && answer.Value)
         {
             _loadingService.StartLoading();
             try
@@ -236,7 +236,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка удаления работника: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка удаления работника: {ex.Message}").ShowDialog();
                 Log.Error($"Ошибка удаления работника: {ex.Message}", ex);
             }
             finally

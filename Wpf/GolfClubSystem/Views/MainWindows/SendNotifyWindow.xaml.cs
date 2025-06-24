@@ -168,7 +168,7 @@ namespace GolfClubSystem.Views.MainWindows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка загрузки данных: {ex.Message}").ShowDialog();
             }
         }
 
@@ -185,7 +185,7 @@ namespace GolfClubSystem.Views.MainWindows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка загрузки организаций: {ex.Message}").ShowDialog();
                 Organizations = [];
             }
         }
@@ -203,7 +203,7 @@ namespace GolfClubSystem.Views.MainWindows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка загрузки зон: {ex.Message}").ShowDialog();
                 Zones = [];
             }
         }
@@ -281,8 +281,7 @@ namespace GolfClubSystem.Views.MainWindows
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    MessageBox.Show($"Ошибка отправки уведомления: {errorContent}", "Ошибка", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    new DialogWindow("Ошибка", $"Ошибка отправки уведомления: {errorContent}").ShowDialog();
                     _loadingService.StopLoading();
                     return;
                 }
@@ -291,8 +290,7 @@ namespace GolfClubSystem.Views.MainWindows
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка отправки уведомления: {ex.Message}", "Ошибка", MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка отправки уведомления: {ex.Message}").ShowDialog();
             }
             finally
             {

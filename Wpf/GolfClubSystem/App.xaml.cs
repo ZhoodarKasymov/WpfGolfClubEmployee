@@ -73,7 +73,7 @@ public partial class App : Application
 
     private void ShowErrorMessage(string message)
     {
-        MessageBox.Show(message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        new DialogWindow("Ошибка", message).ShowDialog();
     }
 
     #endregion

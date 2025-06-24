@@ -240,9 +240,9 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             _endDate = EndDatePicker.SelectedDate.Value;
 
             // Validate date range (must be within 3 months)
-            if ((_endDate.Value - _startDate.Value).TotalDays > 90)
+            if ((_endDate.Value - _startDate.Value).TotalDays > 31)
             {
-                MessageBox.Show("Диапазон дат не должен превышать 3 месяца.");
+                new DialogWindow("Ошибка", "Диапазон дат не должен превышать 1 месяц.").ShowDialog();
                 return;
             }
 

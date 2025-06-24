@@ -321,8 +321,7 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    MessageBox.Show($"Ошибка сохранения авто запроса: {errorContent}", "Ошибка", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    new DialogWindow("Ошибка", $"Ошибка сохранения авто запроса: {errorContent}").ShowDialog();
                     _loadingService.StopLoading();
                     return;
                 }
@@ -331,8 +330,7 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка сохранения авто запроса: {ex.Message}", "Ошибка", MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                new DialogWindow("Ошибка", $"Ошибка сохранения авто запроса: {ex.Message}").ShowDialog();
             }
             finally
             {

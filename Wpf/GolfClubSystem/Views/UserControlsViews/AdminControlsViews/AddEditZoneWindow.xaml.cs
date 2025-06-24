@@ -83,7 +83,7 @@ public partial class AddEditZoneWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Произошла ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Произошла ошибка: {ex.Message}").ShowDialog();
             Log.Error(ex, "Error in zone operation");
         }
         finally

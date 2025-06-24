@@ -198,10 +198,9 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
     private async void OnDelete(Worker worker)
     {
         if (worker == null) return;
-        var result = MessageBox.Show($"Вы уверены удалить работника: {worker.FullName}?", "Подтверждение",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var answer = new DialogWindow("Подтверждение", "$Вы уверены удалить работника: {worker.FullName}?", "Да", "Нет").ShowDialog();
 
-        if (result == MessageBoxResult.Yes)
+        if (answer.HasValue && answer.Value)
         {
             _loadingService.StartLoading();
             try
@@ -210,8 +209,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    MessageBox.Show($"Ошибка удаления сотрудника: {errorContent}", "Ошибка", MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    new DialogWindow("Ошибка", $"Ошибка удаления сотрудника: {errorContent}").ShowDialog();
                     _loadingService.StopLoading();
                     return;
                 }

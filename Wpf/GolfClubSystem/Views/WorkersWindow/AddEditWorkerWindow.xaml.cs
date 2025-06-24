@@ -154,7 +154,7 @@ public partial class AddEditWorkerWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading image: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Ошибка загрузки картинки: {ex.Message}").ShowDialog();
             return null;
         }
     }
@@ -198,7 +198,7 @@ public partial class AddEditWorkerWindow : Window
         FilterInfoCollection videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
         if (videoDevices.Count == 0)
         {
-            MessageBox.Show("Камера не найдена!");
+            new DialogWindow("Ошибка", "Камера не найдена!").ShowDialog();
             return;
         }
 
@@ -245,7 +245,7 @@ public partial class AddEditWorkerWindow : Window
         }
         else
         {
-            MessageBox.Show("Камера не работает!");
+            new DialogWindow("Ошибка", "Камера не работает!").ShowDialog();
         }
     }
 
@@ -324,7 +324,7 @@ public partial class AddEditWorkerWindow : Window
     {
         if (WorkerPhoto.Source is null)
         {
-            MessageBox.Show("Фотография обьязательная!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            new DialogWindow("Ошибка", "Фотография обьязательная!").ShowDialog();
             return;
         }
 
@@ -374,8 +374,7 @@ public partial class AddEditWorkerWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Ошибка сохранения работника: {ex.Message}", "Ошибка", MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            new DialogWindow("Ошибка", $"Ошибка сохранения работника: {ex.Message}").ShowDialog();
         }
         finally
         {
