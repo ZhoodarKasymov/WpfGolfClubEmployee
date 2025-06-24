@@ -1,21 +1,25 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq.Expressions;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
 using GolfClubSystem.Views.MainWindows;
 using GolfClubSystem.Views.WorkersWindow;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
 {
     public partial class AutoScheduleAddWindow : Window, INotifyPropertyChanged
     {
-        private readonly UnitOfWork _unitOfWork = new();
+        private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
+        private readonly LoadingService _loadingService;
+        
         public ObservableCollection<Worker> Workers { get; set; } = new();
         public List<Organization> Organizations { get; set; }
         public List<Zone> Zones { get; set; }
@@ -34,7 +38,6 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
             {
                 _organization = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -47,7 +50,6 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
             {
                 _zone = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -63,7 +65,6 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
             {
                 _searchText = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -146,11 +147,14 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
 
         public AutoScheduleAddWindow(NotifyJob? job)
         {
+            _configuration = ((App)Application.Current)._configuration;
+            var apiUrl = _configuration.GetSection("ApiUrl").Value
+                         ?? throw new Exception("ApiUrl не прописан в конфигах!");
+            _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+            _loadingService = LoadingService.Instance;
+            
             InitializeComponent();
-            DataContext = this;
-            Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-            Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-            Schedules = _unitOfWork.ScheduleRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+            Loaded += SendNotifyWindow_Loaded;
             
             if (job is not null)
             {
@@ -163,49 +167,120 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
                 JobType = WorkerType.Add;
             }
         }
-
-        private void FilterItems()
+        
+        private async void SendNotifyWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var selectedWorkerIds = Workers.Where(worker => worker.IsSelected).Select(worker => worker.Id).ToList();
-
-            var filteredWorkers = Workers.Where(worker =>
-                (Organization == null || worker.OrganizationId == Organization.Id) &&
-                (Zone == null || worker.ZoneId == Zone.Id)).ToList();
-
-            if (!string.IsNullOrEmpty(SearchText))
-            {
-                filteredWorkers = filteredWorkers
-                    .Where(worker => worker.FullName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            // Reapply the selection to the filtered workers based on the stored selected worker IDs
-            foreach (var worker in filteredWorkers)
-            {
-                worker.IsSelected = selectedWorkerIds.Contains(worker.Id);
-            }
-
-            Workers = new ObservableCollection<Worker>(
-                filteredWorkers
-                    .OrderBy(worker => worker.FullName)
-            );
-
-            OnPropertyChanged(nameof(Workers));
+            Loaded -= SendNotifyWindow_Loaded;
+            await InitializeDataAsync();
         }
 
-        private void UpdateWorkers(Expression<Func<Worker, bool>>? predicate = null)
+        private async Task InitializeDataAsync()
         {
-            var workers = _unitOfWork.WorkerRepository.GetAll()
-                .Where(w => w.DeletedAt == null)
-                .AsNoTracking();
-
-            if (predicate != null)
+            try
             {
-                workers = workers.Where(predicate);
+                await Task.WhenAll(
+                    LoadOrganizationsAsync(),
+                    LoadZonesAsync(),
+                    LoadSchedulesAsync(),
+                    UpdateWorkers()
+                );
+                
+                DataContext = this;
             }
-            
-            Workers = new ObservableCollection<Worker>(workers.ToList());
-            OnPropertyChanged(nameof(Workers));
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadOrganizationsAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/Hr/organizations");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+                Organizations = [..organizations];
+                OnPropertyChanged(nameof(Organizations));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Organizations = [];
+            }
+        }
+
+        private async Task LoadZonesAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/Hr/zones");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var zones = JsonConvert.DeserializeObject<List<Zone>>(json) ?? [];
+                Zones = [..zones];
+                OnPropertyChanged(nameof(Zones));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Zones = [];
+            }
+        }
+        
+        private async Task LoadSchedulesAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/Admin/schedules");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var zones = JsonConvert.DeserializeObject<List<Schedule>>(json) ?? [];
+                Schedules = [..zones];
+                OnPropertyChanged(nameof(Schedules));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Schedules = [];
+            }
+        }
+
+        private async Task UpdateWorkers(int? organizationId = null, int? zoneId = null)
+        {
+            _loadingService.StartLoading();
+            try
+            {
+                var queryParams = new List<string>();
+
+                if (organizationId.HasValue)
+                    queryParams.Add($"organizationId={organizationId.Value}");
+                if (zoneId.HasValue)
+                    queryParams.Add($"zoneId={zoneId.Value}");
+                
+                queryParams.Add("pageNumber=1");
+                queryParams.Add("pageSize=2000");
+                queryParams.Add($"endWorkDate={DateTime.Now.Date:yyyy-MM-dd}");
+
+                var queryString = string.Join("&", queryParams);
+                var response = await _httpClient.GetAsync($"api/Hr/workers-paged?{queryString}");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<PagedWorkersResponse>(json);
+
+                Workers = new ObservableCollection<Worker>(result?.Workers ?? []);
+                OnPropertyChanged(nameof(Workers));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки сотрудников: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Workers = [];
+            }
+            finally
+            {
+                _loadingService.StopLoading();
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -225,118 +300,96 @@ namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews
 
         private async void Submit(object sender, RoutedEventArgs e)
         {
-            List<Worker> selectedWorkers;
-
-            if (SelectedPercent != null)
+            _loadingService.StartLoading();
+            try
             {
-                var totalCountQuery = _unitOfWork.WorkerRepository.GetAll()
-                    .Where(w => w.ChatId != null);
-                        
-                if (Organization != null)
+                var workers = WorkersListBox.SelectedItems.Cast<Worker>().ToList();
+                var notifyRequest = new
                 {
-                    totalCountQuery = totalCountQuery.Where(w => w.OrganizationId == Organization.Id);
+                    Description,
+                    Percent = SelectedPercent?.Value,
+                    WorkerIds = SelectedPercent == null ? workers?.Select(w => w.Id).ToArray() : null,
+                    OrganizationId = Organization?.Id != -1 ? Organization?.Id : null,
+                    ZoneId = Zone?.Id != -1 ? Zone?.Id : null,
+                    ShiftId = Job?.ShiftId
+                };
+
+                var content = new StringContent(JsonConvert.SerializeObject(notifyRequest), Encoding.UTF8,
+                    "application/json");
+                var response = await _httpClient.PostAsync("api/Admin/auto-notify", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show($"Ошибка сохранения авто запроса: {errorContent}", "Ошибка", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    _loadingService.StopLoading();
+                    return;
                 }
 
-                if (Zone != null)
-                {
-                    totalCountQuery = totalCountQuery.Where(w => w.ZoneId == Zone.Id);
-                }
-                        
-                var totalCount = await totalCountQuery.CountAsync();
-                var countToFetch = (int)Math.Ceiling(totalCount * (SelectedPercent.Value / 100m));
-                        
-                selectedWorkers = await totalCountQuery
-                    .OrderBy(w => Guid.NewGuid()) // Randomize selection
-                    .Take(countToFetch)            // Limit to the count
-                    .ToListAsync();
+                Close();
             }
-            else
+            catch (Exception ex)
             {
-                selectedWorkers = Workers.Where(w => w.IsSelected).ToList();
+                MessageBox.Show($"Ошибка сохранения авто запроса: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
-
-            if (selectedWorkers.Count == 0)
+            finally
             {
-                MessageBox.Show("Работники не найденны!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
+                _loadingService.StopLoading();
             }
-
-            var shiftIsExist = _unitOfWork.NotifyJobRepository.GetAll().Any(s => s.ShiftId == Job.ShiftId);
-            var countJob = _unitOfWork.NotifyJobRepository.GetAll().Count();
-
-            if (shiftIsExist)
-            {
-                MessageBox.Show("Авто запрос на такое рассписание уже существует", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-            if (countJob > 2)
-            {
-                MessageBox.Show("Нельзя больше 2 авто уведомлений создать", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            await _unitOfWork.NotifyJobRepository.AddAsync(new NotifyJob
-            {
-                OrganizationId = Organization?.Id,
-                ZoneId = Zone?.Id,
-                Message = Description,
-                ShiftId = Job.ShiftId,
-                Percentage = SelectedPercent?.Value,
-                WorkerIds = JsonSerializer.Serialize(selectedWorkers.Select(w => w.Id).ToList())
-            });
-            
             Close();
         }
 
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            _unitOfWork.Dispose();
+            _httpClient.Dispose();
         }
 
-        private void ComboBox_ZoneChanged(object sender, SelectionChangedEventArgs e)
+        private async void ComboBox_ZoneChanged(object sender, SelectionChangedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             var selectedZone = (Zone?)comboBox?.SelectedItem;
 
-            if (selectedZone != null && Organization != null)
+            if (selectedZone is {Id: not -1} && Organization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == Organization.Id && w.ZoneId == selectedZone.Id);
+                await UpdateWorkers(Organization.Id, selectedZone.Id);
             }
-            else if (Organization != null)
+            else if (Organization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == Organization.Id);
+                await UpdateWorkers(organizationId: Organization.Id);
             }
-            else if (selectedZone != null)
+            else if (selectedZone is {Id: not -1})
             {
-                UpdateWorkers(w => w.ZoneId == selectedZone.Id);
+                await UpdateWorkers(zoneId: selectedZone.Id);
             }
             else
             {
-                UpdateWorkers();
+                await UpdateWorkers();
             }
         }
 
-        private void ComboBox_OrganizationChanged(object sender, SelectionChangedEventArgs e)
+        private async void ComboBox_OrganizationChanged(object sender, SelectionChangedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             var selectedOrganization = (Organization?)comboBox?.SelectedItem;
 
-            if (selectedOrganization != null && Zone != null)
+            if (selectedOrganization is {Id: not -1} && Zone is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == selectedOrganization.Id && w.ZoneId == Zone.Id);
+                await UpdateWorkers(selectedOrganization.Id, Zone.Id);
             }
-            else if (selectedOrganization != null)
+            else if (selectedOrganization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == selectedOrganization.Id);
+                await UpdateWorkers(organizationId: selectedOrganization.Id);
             }
-            else if (Zone != null)
+            else if (Zone is {Id: not -1})
             {
-                UpdateWorkers(w => w.ZoneId == Zone.Id);
+                await UpdateWorkers(zoneId: Zone.Id);
             }
             else
             {
-                UpdateWorkers();
+                await UpdateWorkers();
             }
         }
     }

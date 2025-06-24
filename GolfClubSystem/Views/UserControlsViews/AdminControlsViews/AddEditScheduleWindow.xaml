@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:helpers="clr-namespace:GolfClubSystem.Helpers"
+        xmlns:userControlsViews="clr-namespace:GolfClubSystem.Views.UserControlsViews"
         Background="#f7f9ff"
         mc:Ignorable="d"
         Title="Расписание" Height="800" Width="640"
@@ -344,6 +345,9 @@
                     </StackPanel>
                 </Grid>
             </Border>
+            
+            <!-- Глобальный индикатор загрузки -->
+            <userControlsViews:LoadingOverlay Grid.ColumnSpan="2" TabIndex="100" />
         </Grid>
     </ScrollViewer>
 </Window>

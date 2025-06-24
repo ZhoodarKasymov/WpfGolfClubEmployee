@@ -1,31 +1,43 @@
 ﻿using System.Collections.ObjectModel;
+using System.Net.Http;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
 using GolfClubSystem.Views.WorkersWindow;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
 
 public partial class AddEditScheduleWindow : Window
 {
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
+
     public Schedule Schedule { get; set; }
     public WorkerType ScheduleType { get; set; }
     public bool IsEnable { get; set; }
     public ObservableCollection<DateTime> SelectedDates { get; set; } = new();
-    
-    private readonly UnitOfWork _unitOfWork = new();
-    
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        _unitOfWork.Dispose();
+        _httpClient.Dispose();
         SelectedDates.Clear();
     }
 
     public AddEditScheduleWindow(Schedule? schedule, bool isEnable = true)
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+
         IsEnable = isEnable;
         InitializeComponent();
 
@@ -62,69 +74,57 @@ public partial class AddEditScheduleWindow : Window
 
     private async void ButtonBase_OnClick(object sender, RoutedEventArgs e)
     {
-        switch (ScheduleType)
+        if (string.IsNullOrWhiteSpace(Schedule.Name))
         {
-            case WorkerType.Add:
-            {
-                await _unitOfWork.ScheduleRepository.AddAsync(Schedule);
-                
-                if (SelectedDates.Any())
-                {
-                    var holidays = SelectedDates.Select(sd => new Holiday
-                    {
-                        ScheduleId = Schedule.Id,
-                        HolidayDate = sd
-                    }).ToList();
-                    
-                    Schedule.Holidays = holidays;
-                    await _unitOfWork.SaveAsync();
-                }
-                
-                break;
-            }
-            case WorkerType.Edit:
-            {
-                var currentSchedule = _unitOfWork.ScheduleRepository.GetAll()
-                    .Include(s => s.Holidays)
-                    .Where(w => w.DeletedAt == null)
-                    .FirstOrDefault(w => w.Id == Schedule.Id);
-
-                if (currentSchedule is not null)
-                {
-                    currentSchedule.Name = Schedule.Name;
-                    currentSchedule.BreakStart = Schedule.BreakStart;
-                    currentSchedule.BreakEnd = Schedule.BreakEnd;
-                    currentSchedule.PermissibleEarlyLeaveStart = Schedule.PermissibleEarlyLeaveStart;
-                    currentSchedule.PermissibleEarlyLeaveEnd = Schedule.PermissibleEarlyLeaveEnd;
-                    currentSchedule.PermissibleLateTimeStart = Schedule.PermissibleLateTimeStart;
-                    currentSchedule.PermissibleLateTimeEnd = Schedule.PermissibleLateTimeEnd;
-                    currentSchedule.PermissionToLateTime = Schedule.PermissionToLateTime;
-                    currentSchedule.Scheduledays = Schedule.Scheduledays;
-                    
-                    if (SelectedDates.Any())
-                    {
-                        var holidays = SelectedDates.Select(sd => new Holiday
-                        {
-                            ScheduleId = Schedule.Id,
-                            HolidayDate = sd
-                        }).ToList();
-                        
-                        currentSchedule.Holidays.Clear();
-                        currentSchedule.Holidays = holidays;
-                    }
-                    else
-                    {
-                        currentSchedule.Holidays.Clear();
-                    }
-                    
-                    await _unitOfWork.ScheduleRepository.UpdateAsync(currentSchedule);
-                }
-
-                break;
-            }
+            new DialogWindow("Ошибка", "Название расписания обязательно.").ShowDialog();
+            return;
         }
 
-        Close();
+        _loadingService.StartLoading();
+        try
+        {
+            var holidays = SelectedDates.Select(sd => new Holiday
+            {
+                ScheduleId = Schedule.Id,
+                HolidayDate = sd,
+                Schedule = null
+            }).ToList();
+
+            Schedule.Holidays = holidays;
+
+            var content = new StringContent(JsonConvert.SerializeObject(Schedule), Encoding.UTF8, "application/json");
+            HttpResponseMessage response;
+
+            if (ScheduleType == WorkerType.Add)
+            {
+                response = await _httpClient.PostAsync("api/Admin/schedules", content);
+            }
+            else
+            {
+                response = await _httpClient.PutAsync($"api/Admin/schedules/{Schedule.Id}", content);
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                var error = JsonConvert.DeserializeObject<dynamic>(errorContent);
+                new DialogWindow("Ошибка", error?.Message).ShowDialog();
+                Log.Error($"API error: {error.Message}");
+                _loadingService.StopLoading();
+                return;
+            }
+
+            Close();
+        }
+        catch (Exception ex)
+        {
+            new DialogWindow("Ошибка", $"Произошла ошибка: {ex.Message}").ShowDialog();
+            Log.Error(ex, "Error in schedule operation");
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
     private void Calendar_SelectedDatesChanged(object sender, SelectionChangedEventArgs e)

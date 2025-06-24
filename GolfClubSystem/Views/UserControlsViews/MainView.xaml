@@ -4,6 +4,7 @@
              xmlns:wpf="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:userControlsViews="clr-namespace:GolfClubSystem.Views.UserControlsViews"
              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
              Background="#f7f9ff">
     <Grid>
@@ -128,7 +129,17 @@
                             </Grid>
                             <!-- Rest of your XAML remains unchanged -->
                         </StackPanel>
-                        <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <StackPanel Margin="0,-20,0,0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button HorizontalAlignment="Right"
+                                    Background="#d9dff4"
+                                    Foreground="Black"
+                                    Width="125"
+                                    Height="25"
+                                    FontSize="12"
+                                    materialDesign:ButtonAssist.CornerRadius="8"
+                                    Content="Создать отчёт"
+                                    Click="Export_OnClick"
+                                    Margin="0,0,8,0" />
                             <Border 
                                 BorderBrush="#8b8494" 
                                 BorderThickness="1" 
@@ -237,7 +248,7 @@
                                         <wpf:Axis Title="Зоны" />
                                     </wpf:CartesianChart.AxisX>
                                     <wpf:CartesianChart.AxisY>
-                                        <wpf:Axis Title="Количество" LabelFormatter="{Binding}" />
+                                        <wpf:Axis Title="Количество" MinValue="0" LabelFormatter="{Binding}" />
                                     </wpf:CartesianChart.AxisY>
                                 </wpf:CartesianChart>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -249,7 +260,7 @@
 
                         <Border Grid.Column="1" Background="White" CornerRadius="16"
                                 BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="1" Margin="10"
-                                Padding="10">
+                                Padding="10" Cursor="Hand" MouseDown="RedirectToHistoryOfNotify_click">
 
                             <StackPanel>
                                 <TextBlock Text="Статистика запросов и отметок" FontSize="17" TextWrapping="Wrap"
@@ -283,5 +294,7 @@
                 </StackPanel>
             </Grid>
         </StackPanel>
+        <!-- Глобальный индикатор загрузки -->
+        <userControlsViews:LoadingOverlay Grid.ColumnSpan="2" TabIndex="100" />
     </Grid>
 </UserControl>

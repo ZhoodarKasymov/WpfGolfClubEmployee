@@ -14,24 +14,19 @@
     <ItemGroup>
       <PackageReference Include="AForge.Video" Version="2.2.5" />
       <PackageReference Include="AForge.Video.DirectShow" Version="2.2.5" />
-      <PackageReference Include="Dapper" Version="2.1.35" />
+      <PackageReference Include="ClosedXML" Version="0.104.2" />
+      <PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25103.5738" />
       <PackageReference Include="LiveCharts.Wpf" Version="0.9.7" />
       <PackageReference Include="MaterialDesignColors" Version="3.1.0" />
       <PackageReference Include="MaterialDesignThemes" Version="5.1.0" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.6">
-        <PrivateAssets>all</PrivateAssets>
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
       <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
       <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
-      <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
       <PackageReference Include="Serilog" Version="4.2.0" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
       <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
       <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
-      <PackageReference Include="Telegram.Bot" Version="22.2.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -41,10 +36,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Data\Migrations\" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <Content Include="Reports\TimesheetTemplate.xlsx">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
       <None Remove="Images\left container.png" />
       <Content Include="Images\left_container.png">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -64,24 +58,33 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <None Remove="Images\zapros_status.png" />
-      <Content Include="Images\status_tittle.png">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
       <Content Include="Images\zapros_status.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </Content>
       <None Remove="Images\Property-1.png" />
-      <Content Include="Images\Property-1.png">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
       <None Remove="Images\Property 1=Cancelled.png" />
-      <Content Include="Images\Property 1=Cancelled.png">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </Content>
       <None Remove="Images\Property 1=Default.png" />
-      <Content Include="Images\Property 1=Default.png">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <None Remove="Images\ne_prishol.png" />
+      <Content Include="Images\ne_prishol.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <None Remove="Images\opozdal.png" />
+      <Content Include="Images\opozdal.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\prishel.png" />
+      <Content Include="Images\prishel.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Images\ushel_ranshe.png" />
+      <Content Include="Images\ushel_ranshe.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Reports\MonthlyReportTemplate.xlsx" />
+      <Content Include="Reports\MonthlyReportTemplate.xlsx">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+      <None Remove="Reports\TimesheetTemplate.xlsx" />
     </ItemGroup>
 
     <ItemGroup>
@@ -125,6 +128,11 @@
         <SubType>Designer</SubType>
       </Page>
       <Page Update="Views\UserControlsViews\AdminControlsViews\AutoSchedulView.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+      <Page Update="Views\MainWindows\ExportWindow.xaml">
         <Generator>MSBuild:Compile</Generator>
         <XamlRuntime>Wpf</XamlRuntime>
         <SubType>Designer</SubType>

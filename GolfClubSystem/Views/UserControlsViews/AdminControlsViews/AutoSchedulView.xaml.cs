@@ -1,26 +1,37 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
-using Microsoft.EntityFrameworkCore;
+using GolfClubSystem.Services;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
 
 public partial class AutoSchedulView : UserControl, INotifyPropertyChanged
 {
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
+    
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<NotifyJob> Jobes { get; set; }
-    private readonly UnitOfWork _unitOfWork = new();
     
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
     
     public AutoSchedulView()
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+        
         InitializeComponent();
         EditCommand = new RelayCommand<NotifyJob>(OnEdit);
         DeleteCommand = new RelayCommand<NotifyJob>(OnDelete);
@@ -28,16 +39,23 @@ public partial class AutoSchedulView : UserControl, INotifyPropertyChanged
         DataContext = this;
     }
 
-    private void UpdateZones()
+    private async void UpdateZones()
     {
-        var zones = _unitOfWork.NotifyJobRepository
-            .GetAll(true)
-            .Include(j => j.Zone)
-            .Include(j => j.Organization)
-            .Include(j => j.Shift)
-            .ToList();
-        Jobes = new ObservableCollection<NotifyJob>(zones);
-        OnPropertyChanged(nameof(Jobes));
+        _loadingService.StartLoading();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Admin/autoSchedules");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var zones = JsonConvert.DeserializeObject<List<NotifyJob>>(json) ?? [];
+            
+            Jobes = new ObservableCollection<NotifyJob>(zones);
+            OnPropertyChanged(nameof(Jobes));
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
 
@@ -58,12 +76,33 @@ public partial class AutoSchedulView : UserControl, INotifyPropertyChanged
     private async void OnDelete(NotifyJob zone)
     {
         if (zone == null) return;
-        var result = MessageBox.Show($"Вы уверены удалить авто уведомление на: {zone.Time}?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        
+        var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить авто уведомление на: {zone.Time}?", "Да", "Нет").ShowDialog();
 
-        if (result == MessageBoxResult.Yes)
+        if (answer.HasValue && answer.Value)
         {
-            await _unitOfWork.NotifyJobRepository.DeleteAsync(zone.Id);
-            UpdateZones();
+            _loadingService.StartLoading();
+            try
+            {
+                var response = await _httpClient.DeleteAsync($"api/Admin/autoSchedules/{zone.Id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    new DialogWindow("Ошибка", $"Ошибка удаления авто уведомления: {errorContent}").ShowDialog();
+                    _loadingService.StopLoading();
+                    return;
+                }
+
+                UpdateZones();
+            }
+            catch (Exception ex)
+            {
+                new DialogWindow("Ошибка", $"Ошибка удаления авто уведомления: {ex.Message}").ShowDialog();
+            }
+            finally
+            {
+                _loadingService.StopLoading();
+            }
         }
     }
     

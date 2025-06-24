@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using AForge.Video;
@@ -7,14 +6,14 @@ using AForge.Video.DirectShow;
 using Microsoft.Win32;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Windows.Controls;
 using System.Windows.Input;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace GolfClubSystem.Views.WorkersWindow;
 
@@ -34,11 +33,17 @@ public partial class AddEditWorkerWindow : Window
     public bool IsEnable { get; set; }
 
 
-    private readonly UnitOfWork _unitOfWork = new();
+    private readonly HttpClient _httpClient;
     private readonly IConfigurationRoot _configuration = ((App)Application.Current)._configuration;
+    private readonly LoadingService _loadingService;
 
     public AddEditWorkerWindow(Worker? worker, bool isEnable = true)
     {
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+
         IsEnable = isEnable;
         InitializeComponent();
 
@@ -54,11 +59,86 @@ public partial class AddEditWorkerWindow : Window
             Worker.StartWork = DateTime.Now;
             WorkerType = WorkerType.Add;
         }
+        
+        LoadInitialDataAsync();
+    }
 
-        Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        Schedules = _unitOfWork.ScheduleRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        DataContext = this;
+    private async void LoadInitialDataAsync()
+    {
+        _loadingService.StartLoading();
+        try
+        {
+            await Task.WhenAll(
+                LoadOrganizationsAsync(),
+                LoadZonesAsync(),
+                LoadSchedulesAsync()
+            );
+
+            DataContext = this;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
+    }
+
+    private async Task LoadOrganizationsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/organizations");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Organizations = (JsonConvert.DeserializeObject<List<Organization>>(json) ?? [])
+                .Where(o => o.Id != -1) // Exclude "Все"
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Organizations = new List<Organization>();
+        }
+    }
+
+    private async Task LoadZonesAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/zones");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Zones = (JsonConvert.DeserializeObject<List<Zone>>(json) ?? [])
+                .Where(z => z.Id != -1) // Exclude "Все"
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Zones = new List<Zone>();
+        }
+    }
+
+    private async Task LoadSchedulesAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/schedules");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Schedules = JsonConvert.DeserializeObject<List<Schedule>>(json) ?? [];
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки расписаний: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Schedules = new List<Schedule>();
+        }
     }
 
     private BitmapImage LoadImage(string imageUrl)
@@ -185,7 +265,7 @@ public partial class AddEditWorkerWindow : Window
             });
         }
 
-        _unitOfWork.Dispose();
+        _httpClient.Dispose();
     }
 
     private void PhoneNumberTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -248,156 +328,58 @@ public partial class AddEditWorkerWindow : Window
             return;
         }
 
-        var zones = _unitOfWork.ZoneRepository.GetAll().Where(z => z.DeletedAt == null).ToList();
-
-        var ipAddress = _configuration.GetSection("IpAddressImage").Value;
-        var imagePath = _configuration.GetSection("ImagePath").Value;
-
-        if (WorkerType == WorkerType.Add)
+        _loadingService.StartLoading();
+        try
         {
-            var photoPath = SaveBitmapImage(ipAddress, WorkerPhoto.Source as BitmapImage, imagePath);
-            Worker.PhotoPath = photoPath;
-            await _unitOfWork.WorkerRepository.AddAsync(Worker);
-
-            foreach (var zone in zones)
+            // Convert WorkerPhoto.Source to byte array
+            byte[] imageBytes;
+            var bitmapImage = WorkerPhoto.Source as BitmapImage;
+            using (var ms = new MemoryStream())
             {
-                using var terminalService = new TerminalService(zone.Login, zone.Password);
-                await UpdateAddTerminalEmployee(terminalService, Worker, zone.EnterIp);
-                await UpdateAddTerminalEmployee(terminalService, Worker, zone.ExitIp);
-                await UpdateAddTerminalEmployee(terminalService, Worker, zone.NotifyIp);
+                var encoder = new JpegBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
+                encoder.Save(ms);
+                imageBytes = ms.ToArray();
             }
-        }
 
-        if (WorkerType == WorkerType.Edit)
-        {
-            var currentWorker = _unitOfWork.WorkerRepository.GetAll().Where(w => w.DeletedAt == null)
-                .FirstOrDefault(w => w.Id == Worker.Id);
-
-            if (currentWorker is not null)
+            // Create multipart form data
+            using (var formContent = new MultipartFormDataContent())
             {
-                var photoPath = SaveBitmapImage(ipAddress, WorkerPhoto.Source as BitmapImage, imagePath);
-                currentWorker.OrganizationId = Worker.OrganizationId;
-                currentWorker.ZoneId = Worker.ZoneId;
-                currentWorker.Mobile = Worker.Mobile;
-                currentWorker.CardNumber = Worker.CardNumber;
-                currentWorker.ScheduleId = Worker.ScheduleId;
-                currentWorker.FullName = Worker.FullName;
-                currentWorker.StartWork = Worker.StartWork;
-                currentWorker.EndWork = Worker.EndWork;
-                currentWorker.JobTitle = Worker.JobTitle;
-                currentWorker.TelegramUsername = Worker.TelegramUsername;
-                currentWorker.AdditionalMobile = Worker.AdditionalMobile;
-                currentWorker.PhotoPath = photoPath;
-                await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
+                var workerJson = JsonConvert.SerializeObject(Worker);
+                formContent.Add(new StringContent(workerJson, System.Text.Encoding.UTF8, "application/json"),
+                    "workerJson");
 
-                foreach (var zone in zones)
+                // Add image
+                formContent.Add(new ByteArrayContent(imageBytes), "image", "worker.jpg");
+
+                HttpResponseMessage response;
+
+                if (WorkerType == WorkerType.Add)
                 {
-                    using var terminalService = new TerminalService(zone.Login, zone.Password);
-                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.EnterIp);
-                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.ExitIp);
-                    await terminalService.DeleteUserImageAsync(currentWorker.Id.ToString(), zone.NotifyIp);
-                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.EnterIp);
-                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.ExitIp);
-                    await UpdateAddTerminalEmployee(terminalService, currentWorker, zone.NotifyIp);
+                    response = await _httpClient.PostAsync("api/Hr/workers", formContent);
                 }
-            }
-        }
-
-        Close();
-
-        async Task UpdateAddTerminalEmployee(TerminalService terminalService, Worker worker, string ip)
-        {
-            var terminalUserAddedEnter = await terminalService.AddUserInfoAsync(worker, ip);
-            if (terminalUserAddedEnter)
-            {
-                await terminalService.AddUserImageAsync(worker, ip);
-
-                if (worker.CardNumber != null)
+                else
                 {
-                    await terminalService.AddCardInfoAsync(worker, ip);
+                    response = await _httpClient.PutAsync($"api/Hr/workers/{Worker.Id}", formContent);
                 }
-            }
-        }
-    }
 
-    public static string SaveBitmapImage
-    (
-        string ipAddress,
-        BitmapImage bitmapImage,
-        string directoryPath,
-        int maxSizeKB = 200
-    )
-    {
-        // Ensure the directory exists
-        if (!Directory.Exists(directoryPath))
-        {
-            Directory.CreateDirectory(directoryPath);
-        }
-
-        // Generate a new GUID for the file name
-        string fileName = Guid.NewGuid().ToString() + ".jpeg"; // Save as JPEG
-        string fullPath = Path.Combine(directoryPath, fileName);
-
-        // Convert BitmapImage to Bitmap
-        using (var memoryStream = new MemoryStream())
-        {
-            // Save BitmapImage to a memory stream
-            BitmapEncoder encoder = new PngBitmapEncoder(); // Use PNG format for internal storage
-            encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
-            encoder.Save(memoryStream);
-
-            // Create a Bitmap from the memory stream
-            using (var bitmap = new Bitmap(memoryStream))
-            {
-                // Compress and save as JPEG with the quality setting
-                var encoderParams = new EncoderParameters(1);
-                var qualityParam = new EncoderParameter(Encoder.Quality, 90L); // Start with 90% quality
-                encoderParams.Param[0] = qualityParam;
-
-                // Create JPEG encoder
-                var jpegCodec = GetEncoder(ImageFormat.Jpeg);
-
-                // Save the Bitmap with the quality setting
-                int quality = 90;
-                do
+                if (!response.IsSuccessStatusCode)
                 {
-                    using (var outputStream = new MemoryStream())
-                    {
-                        bitmap.Save(outputStream, jpegCodec, encoderParams);
-
-                        // Check the size and adjust quality if necessary
-                        if (outputStream.Length / 1024 > maxSizeKB) // If file is larger than maxSizeKB (in KB)
-                        {
-                            quality -= 5; // Decrease quality to reduce size
-                            qualityParam = new EncoderParameter(Encoder.Quality, quality);
-                            encoderParams.Param[0] = qualityParam;
-                        }
-                        else
-                        {
-                            // Save the final file
-                            File.WriteAllBytes(fullPath, outputStream.ToArray());
-                            break;
-                        }
-                    }
-                } while (quality > 10); // Ensure that the quality does not go below 10%
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"API Error: {response.StatusCode}, Details: {errorContent}");
+                }
+                
+                Close();
             }
         }
-
-        // Return the URL to access the saved image
-        return $"http://{ipAddress}/{fileName}";
-    }
-
-    // Helper method to get the JPEG encoder
-    private static ImageCodecInfo GetEncoder(ImageFormat format)
-    {
-        foreach (ImageCodecInfo codec in ImageCodecInfo.GetImageEncoders())
+        catch (Exception ex)
         {
-            if (codec.FormatID == format.Guid)
-            {
-                return codec;
-            }
+            MessageBox.Show($"Ошибка сохранения работника: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
-
-        return null;
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 }

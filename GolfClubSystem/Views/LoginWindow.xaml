@@ -3,11 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:validations="clr-namespace:GolfClubSystem.Validations" 
-        xmlns:helpers="clr-namespace:GolfClubSystem.Helpers" 
+        xmlns:helpers="clr-namespace:GolfClubSystem.Helpers"
+        xmlns:userControlsViews="clr-namespace:GolfClubSystem.Views.UserControlsViews"
         Title="Логин" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
         Background="White"
-        FontFamily="{DynamicResource MaterialDesignFont}">
+        FontFamily="{DynamicResource MaterialDesignFont}"
+        KeyDown="Window_KeyDown">
 
     <Grid>
         <!-- Разделение экрана на две части -->
@@ -62,9 +64,15 @@
                         Style="{StaticResource MaterialDesignRaisedButton}"
                         Background="#3A60E7" Foreground="White"
                         Height="50"
+                        TouchEnter="LoginButton_Click"
                         Padding="10" Margin="0,20,0,0"
                         Click="LoginButton_Click" />
             </StackPanel>
+            
+            
+            
         </Grid>
+        <!-- Глобальный индикатор загрузки -->
+        <userControlsViews:LoadingOverlay Grid.ColumnSpan="2" TabIndex="100" />
     </Grid>
 </Window>

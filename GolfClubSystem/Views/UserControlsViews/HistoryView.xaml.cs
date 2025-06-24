@@ -1,13 +1,15 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
-using Microsoft.EntityFrameworkCore;
+using GolfClubSystem.Services;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace GolfClubSystem.Views.UserControlsViews
 {
@@ -17,20 +19,32 @@ namespace GolfClubSystem.Views.UserControlsViews
         public int Id { get; set; }
     }
 
+    class PagedHistoryResponse
+    {
+        public int TotalCount { get; set; }
+        public List<Employeehistory> Histories { get; set; }
+        public int CurrentPage { get; set; }
+        public int PageSize { get; set; }
+    }
+
     public partial class HistoryView : UserControl, INotifyPropertyChanged
     {
+        private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
+        private readonly LoadingService _loadingService;
+        
         public ObservableCollection<Employeehistory> Histories { get; set; }
         public List<Organization> Organizations { get; set; }
 
         public List<Item> Statuses { get; set; } = new()
         {
+            new() { Name = "Все", Id = -1 },
             new() { Name = "Пришел", Id = 1 },
             new() { Name = "Опоздал", Id = 3 },
             new() { Name = "Не пришел", Id = 2 },
             new() { Name = "Ушел пораньше", Id = 4 }
         };
 
-        private readonly UnitOfWork _unitOfWork = new();
         private int _currentPage = 1;
         private const int PageSize = 10;
         private DateTime? _startDate;
@@ -60,73 +74,88 @@ namespace GolfClubSystem.Views.UserControlsViews
 
         public HistoryView()
         {
+            _configuration = ((App)Application.Current)._configuration;
+            var apiUrl = _configuration.GetSection("ApiUrl").Value
+                         ?? throw new Exception("ApiUrl не прописан в конфигах!");
+            _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+            _loadingService = LoadingService.Instance;
+            
             InitializeComponent();
             TodayFilter.Background = new SolidColorBrush(Color.FromRgb(46, 87, 230));
             TodayFilter.Foreground = Brushes.White;
             ApplyTodayFilter();
-            Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-
+            LoadOrganizationsAsync();
+            
             DataContext = this;
             Unloaded += WorkersView_Unloaded;
         }
-
-        private void ApplyFilters()
+        
+        private async void LoadOrganizationsAsync()
         {
-            var filteredHistories = _unitOfWork.HistoryRepository
-                .GetAll()
-                .Include(h => h.MarkZone)
-                .Include(h => h.Worker)
-                .ThenInclude(w => w.Organization)
-                .Include(h => h.Worker)
-                .ThenInclude(w => w.Zone)
-                .Include(h => h.Worker)
-                .ThenInclude(w => w.Schedule)
-                .AsNoTracking();
-
-            // Apply date filter if startDate and endDate are set
-            if (_startDate.HasValue && _endDate.HasValue)
+            _loadingService.StartLoading();
+            try
             {
-                filteredHistories = filteredHistories.Where(h => h.ArrivalTime >= _startDate.Value 
-                                                                 && h.ArrivalTime <= _endDate.Value);
+                var response = await _httpClient.GetAsync("api/Hr/organizations");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                Organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+                OrganizationFilter.ItemsSource = Organizations;
+                OnPropertyChanged(nameof(Organizations));
             }
-
-            // Apply search filter
-            if (!string.IsNullOrEmpty(SearchBox.Text))
+            catch (Exception ex)
             {
-                filteredHistories = filteredHistories.Where(h => h.Worker.FullName.Contains(SearchBox.Text) 
-                                                                 || h.Worker.JobTitle.Contains(SearchBox.Text));
+                MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            // Apply organization filter
-            if (OrganizationFilter.SelectedItem != null)
+            finally
             {
-                var organization = OrganizationFilter.SelectedItem as Organization;
-                filteredHistories = filteredHistories.Where(h => h.Worker.OrganizationId == organization!.Id);
+                _loadingService.StopLoading();
             }
+        }
 
-            // Apply status filter
-            if (StatusFilter.SelectedItem != null)
+        private async void ApplyFilters()
+        {
+            _loadingService.StartLoading();
+            try
             {
-                var status = StatusFilter.SelectedItem as Item;
-                filteredHistories = filteredHistories.Where(h => h.Status == status!.Id);
+                var queryParams = new List<string>();
+                
+                if (_startDate.HasValue)
+                    queryParams.Add($"startDate={Uri.EscapeDataString(_startDate.Value.ToString("yyyy-MM-ddTHH:mm:ss"))}");
+                if (_endDate.HasValue)
+                    queryParams.Add($"endDate={Uri.EscapeDataString(_endDate.Value.ToString("yyyy-MM-ddTHH:mm:ss"))}");
+                if (OrganizationFilter.SelectedItem is Organization org && org.Id != -1)
+                    queryParams.Add($"organizationId={org.Id}");
+                if (StatusFilter.SelectedItem is Item status && status.Id != -1)
+                    queryParams.Add($"statusId={status.Id}");
+                if (!string.IsNullOrEmpty(SearchBox.Text))
+                    queryParams.Add($"search={Uri.EscapeDataString(SearchBox.Text)}");
+                
+                queryParams.Add($"pageNumber={_currentPage}");
+                queryParams.Add($"pageSize={PageSize}");
+
+                var queryString = string.Join("&", queryParams);
+                var response = await _httpClient.GetAsync($"api/Hr/history-paged?{queryString}");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var data = JsonConvert.DeserializeObject<PagedHistoryResponse>(json);
+
+                Histories = new ObservableCollection<Employeehistory>(data.Histories);
+                IsPreviousPageEnabled = _currentPage > 1;
+                IsNextPageEnabled = (_currentPage * PageSize) < data.TotalCount;
+                PageNumberText.Text = _currentPage.ToString();
+
+                OnPropertyChanged(nameof(Histories));
             }
-            
-            int total = filteredHistories.Count();
-
-            // Paginate the results
-            var pagedHistories = filteredHistories
-                .Skip((_currentPage - 1) * PageSize)
-                .Take(PageSize)
-                .ToList();
-
-            // Update ObservableCollection
-            Histories = new ObservableCollection<Employeehistory>(pagedHistories);
-            OnPropertyChanged(nameof(Histories));
-            PageNumberText.Text = _currentPage.ToString();
-            
-            // Update button states
-            IsPreviousPageEnabled = _currentPage > 1;
-            IsNextPageEnabled = (_currentPage * PageSize) < total;
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки истории: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Histories = new ObservableCollection<Employeehistory>();
+                OnPropertyChanged(nameof(Histories));
+            }
+            finally
+            {
+                _loadingService.StopLoading();
+            }
         }
 
         private void FilterButton_Click(object sender, RoutedEventArgs e)
@@ -230,7 +259,7 @@ namespace GolfClubSystem.Views.UserControlsViews
 
         private void WorkersView_Unloaded(object sender, RoutedEventArgs e)
         {
-            _unitOfWork.Dispose();
+            _httpClient.Dispose();
         }
 
         private void ReloadButton_click(object sender, RoutedEventArgs e)

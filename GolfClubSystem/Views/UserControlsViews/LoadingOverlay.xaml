@@ -1,0 +1,19 @@
+﻿<UserControl x:Class="GolfClubSystem.Views.UserControlsViews.LoadingOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:GolfClubSystem.Services"
+             DataContext="{x:Static services:LoadingService.Instance}">
+    <Grid>
+        <Border Background="#80000000" 
+                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ProgressBar
+                IsIndeterminate="{Binding IsLoading}"
+                Foreground="#3A60E7"
+                Background="Transparent"
+                Width="50" Height="50"
+                Style="{DynamicResource MaterialDesignCircularProgressBar}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center" />
+        </Border>
+    </Grid>
+</UserControl>

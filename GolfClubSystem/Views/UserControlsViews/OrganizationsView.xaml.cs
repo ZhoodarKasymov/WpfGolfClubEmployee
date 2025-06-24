@@ -1,27 +1,34 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
 using GolfClubSystem.ViewModels;
 using GolfClubSystem.Views.WorkersWindow;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace GolfClubSystem.Views.UserControlsViews;
 
 public partial class OrganizationsView : UserControl, INotifyPropertyChanged, IDataErrorInfo
 {
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
+
     public ObservableCollection<Node> Nodes { get; set; } = new();
     public ObservableCollection<Worker> Workers { get; set; } = new();
     public List<Zone> Zones { get; set; }
-    
+
     private int _currentPage = 1;
     private const int PageSize = 10;
-    
+
     public Node SelectedNode { get; set; }
 
     public NodeType SelectedNodeType { get; set; }
@@ -73,13 +80,12 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
     public ICommand AddNodeCommand { get; }
     public ICommand ShowWorkersCommand { get; }
 
-    private readonly UnitOfWork _unitOfWork = new();
-    
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand ShowCommand { get; }
-    
+
     private bool _isNextPageEnabled;
+
     public bool IsNextPageEnabled
     {
         get => _isNextPageEnabled;
@@ -91,6 +97,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
     }
 
     private bool _isPreviousPageEnabled;
+
     public bool IsPreviousPageEnabled
     {
         get => _isPreviousPageEnabled;
@@ -100,11 +107,16 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
             OnPropertyChanged();
         }
     }
-    
+
     public OrganizationsView()
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+
         InitializeComponent();
-        DataContext = this;
 
         OpenAddOrganizationDialogCommand = new RelayCommand(OpenAddOrganizationDialog);
         AddNewOrganizationCommand = new RelayCommand(AddNewOrganization);
@@ -117,12 +129,58 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
         DeleteCommand = new RelayCommand<Worker>(OnDelete);
         ShowCommand = new RelayCommand<Worker>(OnShow);
 
-        Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
         IsEmployerShow = false;
-        UpdateNodes();
+        Loaded += OrganizationsView_Loaded;
         Unloaded += WorkersView_Unloaded;
     }
-    
+
+    private async void OrganizationsView_Loaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= OrganizationsView_Loaded;
+        await InitializeDataAsync();
+    }
+
+    private async Task InitializeDataAsync()
+    {
+        _loadingService.StartLoading();
+        try
+        {
+            await Task.WhenAll(
+                LoadZonesAsync(),
+                UpdateNodes()
+            );
+
+            DataContext = this;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
+    }
+
+    private async Task LoadZonesAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/zones");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var zones = JsonConvert.DeserializeObject<List<Zone>>(json) ?? [];
+            Zones = zones;
+            OnPropertyChanged(nameof(Zones));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Zones = [];
+        }
+    }
+
     private void AddEmployeeCommand(object sender, RoutedEventArgs e)
     {
         var window = new AddEditWorkerWindow(null);
@@ -145,49 +203,29 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
 
         if (result == MessageBoxResult.Yes)
         {
-            var currentWorker = _unitOfWork.WorkerRepository.GetAll().Include(w => w.Zone)
-                .FirstOrDefault(o => o.Id == worker.Id);
-
-            if (currentWorker is not null)
+            _loadingService.StartLoading();
+            try
             {
-                var zones = _unitOfWork.ZoneRepository.GetAll().Where(z => z.DeletedAt == null).ToList();
-                
-                currentWorker.DeletedAt = DateTime.Now;
-                await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
-                ApplyFilters();
-
-                foreach (var zone in zones)
+                var response = await _httpClient.DeleteAsync($"api/Hr/workers/{worker.Id}");
+                if (!response.IsSuccessStatusCode)
                 {
-                    var terminalService = new TerminalService(zone.Login, zone.Password);
-
-                    await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
-                    {
-                        UserInfoDelCond = new UserInfoDelCond
-                        {
-                            EmployeeNoList =
-                            [
-                                new EmployeeNo
-                                {
-                                    EmployeeNoValue = currentWorker.Id.ToString()
-                                }
-                            ]
-                        }
-                    }, zone.EnterIp);
-
-                    await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
-                    {
-                        UserInfoDelCond = new UserInfoDelCond
-                        {
-                            EmployeeNoList =
-                            [
-                                new EmployeeNo
-                                {
-                                    EmployeeNoValue = currentWorker.Id.ToString()
-                                }
-                            ]
-                        }
-                    }, zone.ExitIp);
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show($"Ошибка удаления сотрудника: {errorContent}", "Ошибка", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    _loadingService.StopLoading();
+                    return;
                 }
+
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка удаления сотрудника: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                _loadingService.StopLoading();
             }
         }
     }
@@ -198,14 +236,30 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
         window.ShowDialog();
     }
 
-    private void UpdateNodes()
+    private async Task UpdateNodes()
     {
-        var organizations = BuildHierarchy(_unitOfWork.OrganizationRepository
-            .GetAll()
-            .Where(o => o.DeletedAt == null).ToList());
-        
-        Nodes = organizations;
-        OnPropertyChanged(nameof(Nodes));
+        _loadingService.StartLoading();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/organizations-full");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var organizations = (JsonConvert.DeserializeObject<List<Organization>>(json) ?? [])
+                .ToList();
+
+            Nodes = BuildHierarchy(organizations);
+            OnPropertyChanged(nameof(Nodes));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Nodes = new ObservableCollection<Node>();
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
     private ObservableCollection<Node> BuildHierarchy(ICollection<Organization> organizations, int? parentId = null)
@@ -243,69 +297,105 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
                 case NodeType.AddNode:
                 {
                     var existNode = FindNodeRecursive(Nodes, NewOrganizationName);
-                    var existInDb = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null)
-                        .Any(o => o.Name == NewOrganizationName);
 
-                    if (existNode is not null || existInDb)
+                    if (existNode is not null)
                     {
-                        MessageBox.Show("Нельзя дублировать названия организаций!", "Ошибка", MessageBoxButton.OK,
-                            MessageBoxImage.Error);
+                        new DialogWindow("Ошибка", "Нельзя дублировать названия организаций!").ShowDialog();
+                        return;
+                    }
+
+                    var content =
+                        new StringContent(JsonConvert.SerializeObject(new Organization { Name = NewOrganizationName }),
+                            Encoding.UTF8, "application/json");
+                    var response = await _httpClient.PostAsync("api/Hr/organizations", content);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        new DialogWindow("Ошибка", $"Ошибка: {errorContent}").ShowDialog();
+                        _loadingService.StopLoading();
                         return;
                     }
 
                     Nodes.Add(new Node { Name = NewOrganizationName });
-                    await _unitOfWork.OrganizationRepository.AddAsync(new Organization { Name = NewOrganizationName });
-
                     break;
                 }
                 case NodeType.AddSubNode:
                 {
-                    var existNode = FindNodeRecursive(Nodes, NewOrganizationName);
-                    var existInDb = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null)
-                        .Any(o => o.Name == NewOrganizationName);
-
-                    if (existNode is not null || existInDb)
+                    var selectedOrg = await GetOrganizationByNameAsync(SelectedNode.Name);
+                    if (selectedOrg == null)
                     {
-                        MessageBox.Show("Нельзя дублировать названия организаций!", "Ошибка", MessageBoxButton.OK,
-                            MessageBoxImage.Error);
+                        new DialogWindow("Ошибка", "Выбранная организация не найдена").ShowDialog();
                         return;
                     }
 
-                    var selectedOrg = _unitOfWork.OrganizationRepository.GetAll()
-                        .FirstOrDefault(o => o.Name == SelectedNode.Name);
-                    SelectedNode.Nodes.Add(new Node { Name = NewOrganizationName });
-                    selectedOrg?.InverseParentOrganization.Add(new Organization { Name = NewOrganizationName });
+                    var existNode = FindNodeRecursive(Nodes, NewOrganizationName);
 
+                    if (existNode is not null)
+                    {
+                        new DialogWindow("Ошибка", "Нельзя дублировать названия организаций!").ShowDialog();
+                        return;
+                    }
+
+                    var content =
+                        new StringContent(
+                            JsonConvert.SerializeObject(new Organization
+                                { Name = NewOrganizationName, ParentOrganizationId = selectedOrg.Id }), Encoding.UTF8,
+                            "application/json");
+                    var response = await _httpClient.PostAsync("api/Hr/organizations", content);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        new DialogWindow("Ошибка", $"Ошибка: {errorContent}").ShowDialog();
+                        _loadingService.StopLoading();
+                        return;
+                    }
+
+                    SelectedNode.Nodes.Add(new Node { Name = NewOrganizationName });
                     break;
                 }
                 case NodeType.EditNode:
                 {
-                    var selectedOrg = _unitOfWork.OrganizationRepository.GetAll()
-                        .FirstOrDefault(o => o.Name == SelectedNode.Name);
-                    var existInDb = _unitOfWork.OrganizationRepository.GetAll().Any(o => o.Name == NewOrganizationName);
-
-                    if (existInDb)
+                    var selectedOrg = await GetOrganizationByNameAsync(SelectedNode.Name);
+                    if (selectedOrg == null)
                     {
-                        MessageBox.Show("Нельзя дублировать названия организаций!", "Ошибка", MessageBoxButton.OK,
-                            MessageBoxImage.Error);
+                        new DialogWindow("Ошибка", "Выбранная организация не найдена").ShowDialog();
                         return;
                     }
 
-                    if (selectedOrg is not null)
+                    var content =
+                        new StringContent(
+                            JsonConvert.SerializeObject(new Organization
+                                { Name = NewOrganizationName, ParentOrganizationId = selectedOrg.Id }), Encoding.UTF8,
+                            "application/json");
+                    var response = await _httpClient.PutAsync($"api/Hr/organizations/{selectedOrg.Id}", content);
+
+                    if (!response.IsSuccessStatusCode)
                     {
-                        selectedOrg.Name = NewOrganizationName;
-                        await _unitOfWork.OrganizationRepository.UpdateAsync(selectedOrg);
-                        UpdateNodes();
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        new DialogWindow("Ошибка", $"Ошибка: {errorContent}").ShowDialog();
+                        _loadingService.StopLoading();
+                        return;
                     }
 
+                    await UpdateNodes();
                     break;
                 }
             }
 
-            await _unitOfWork.SaveAsync();
             NewOrganizationName = "";
             CloseDialog();
         }
+    }
+
+    private async Task<Organization?> GetOrganizationByNameAsync(string name)
+    {
+        var response = await _httpClient.GetAsync("api/Hr/organizations");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+        return organizations.FirstOrDefault(o => o.Name == name && o.Id != -1);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -345,32 +435,51 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
     private async void DeleteNode(Node node)
     {
         if (node == null) return;
-        var result = MessageBox.Show($"Вы уверены удалить организацию: {node.Name}?", "Подтверждение",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
 
-        if (result == MessageBoxResult.Yes)
+        var selectedOrg = await GetOrganizationByNameAsync(node.Name);
+        var hasWorkers = await CheckHasActiveWorkersAsync(selectedOrg?.Id);
+
+        if (hasWorkers)
         {
-            var selectedOrg = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null)
-                .FirstOrDefault(o => o.Name == node.Name);
-            if (selectedOrg is not null)
+            new DialogWindow("Ошибка", "Нельзя удалить организацию у организации есть активные рабочие!").ShowDialog();
+        }
+        
+        var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить организацию: {node.Name}?", "Да", "Нет").ShowDialog();
+
+        if (answer.HasValue && answer.Value)
+        {
+            try
             {
-                MarkAsDeleted(selectedOrg);
-                await _unitOfWork.OrganizationRepository.UpdateAsync(selectedOrg);
+                var response = await _httpClient.DeleteAsync($"api/Hr/organizations/{selectedOrg.Id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    new DialogWindow("Ошибка", $"Ошибка удаления: {errorContent}").ShowDialog();
+                    _loadingService.StopLoading();
+                    return;
+                }
+
                 Nodes.Remove(node);
-                UpdateNodes();
+                await UpdateNodes();
             }
-        }
-
-        void MarkAsDeleted(Organization organization)
-        {
-            organization.DeletedAt = DateTime.Now;
-
-            // Recursively mark sub-organizations as deleted
-            foreach (var subOrg in organization.InverseParentOrganization)
+            catch (Exception ex)
             {
-                MarkAsDeleted(subOrg);
+                new DialogWindow("Ошибка", $"Ошибка удаления организации!").ShowDialog();
+                Log.Error($"Ошибка удаления организации: {ex.Message}", ex);
             }
         }
+    }
+
+    private async Task<bool> CheckHasActiveWorkersAsync(int? organizationId)
+    {
+        if (!organizationId.HasValue) return false;
+        var response =
+            await _httpClient.GetAsync(
+                $"api/Hr/workers-paged?organizationId={organizationId}&pageNumber=1&pageSize=1");
+        response.EnsureSuccessStatusCode();
+        var json = await response.Content.ReadAsStringAsync();
+        var result = JsonConvert.DeserializeObject<dynamic>(json);
+        return result.TotalCount > 0;
     }
 
     private void AddNode(Node node)
@@ -381,49 +490,54 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
         IsDialogOpen = true;
     }
 
-    private void ApplyFilters()
+    private async void ApplyFilters()
     {
-        var filteredHistories = _unitOfWork.WorkerRepository.GetAll()
-            .Include(w => w.Zone)
-            .Include(w => w.Organization)
-            .Where(w => w.DeletedAt == null)
-            .AsNoTracking();
-
-        // Apply search filter
-        if (!string.IsNullOrEmpty(SearchBox.Text))
+        try
         {
-            filteredHistories = filteredHistories.Where(w => w.FullName.Contains(SearchBox.Text)
-                                                             || w.JobTitle.Contains(SearchBox.Text));
-        }
+            var queryParams = new List<string>();
 
-        if (SelectedNode != null)
+            if (!string.IsNullOrEmpty(SearchBox.Text))
+            {
+                queryParams.Add($"search={Uri.EscapeDataString(SearchBox.Text)}");
+            }
+
+            if (SelectedNode != null)
+            {
+                var selectedOrg = await GetOrganizationByNameAsync(SelectedNode.Name);
+                if (selectedOrg != null)
+                {
+                    queryParams.Add($"organizationId={selectedOrg.Id}");
+                }
+            }
+
+            if (ZonesFilter.SelectedItem != null && (ZonesFilter.SelectedItem as Zone).Id != -1)
+            {
+                var zone = ZonesFilter.SelectedItem as Zone;
+                queryParams.Add($"zoneId={zone.Id}");
+            }
+
+            queryParams.Add($"pageNumber={_currentPage}");
+            queryParams.Add($"pageSize={PageSize}");
+
+            var queryString = string.Join("&", queryParams.ToArray());
+            var response = await _httpClient.GetAsync($"api/Hr/workers-paged?{queryString}");
+            response.EnsureSuccessStatusCode();
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<PagedWorkersResponse>(jsonContent);
+
+            Workers = new ObservableCollection<Worker>(result?.Workers ?? []);
+            OnPropertyChanged(nameof(Workers));
+            PageNumberText.Text = _currentPage.ToString();
+
+            IsPreviousPageEnabled = _currentPage > 1;
+            IsNextPageEnabled = (_currentPage * PageSize) < result.TotalCount;
+        }
+        catch (Exception ex)
         {
-            filteredHistories = filteredHistories.Where(w => w.Organization!.Name == SelectedNode.Name);
+            MessageBox.Show($"Ошибка фильтрации сотрудников: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Workers = new ObservableCollection<Worker>();
         }
-
-        // Apply status filter
-        if (ZonesFilter.SelectedItem != null)
-        {
-            var zone = ZonesFilter.SelectedItem as Zone;
-            filteredHistories = filteredHistories.Where(w => w.ZoneId == zone!.Id);
-        }
-        
-        int totalWorkers = filteredHistories.Count();
-
-        // Paginate the results
-        var pagedHistories = filteredHistories
-            .Skip((_currentPage - 1) * PageSize)
-            .Take(PageSize)
-            .ToList();
-
-        // Update ObservableCollection
-        Workers = new ObservableCollection<Worker>(pagedHistories);
-        OnPropertyChanged(nameof(Workers));
-        PageNumberText.Text = _currentPage.ToString();
-        
-        // Update button states
-        IsPreviousPageEnabled = _currentPage > 1;
-        IsNextPageEnabled = (_currentPage * PageSize) < totalWorkers;
     }
 
     private void ShowWorkers(Node node)
@@ -448,7 +562,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
         _currentPage++;
         ApplyFilters();
     }
-    
+
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         ApplyFilters();
@@ -479,7 +593,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
 
     private void WorkersView_Unloaded(object sender, RoutedEventArgs e)
     {
-        _unitOfWork.Dispose();
+        _httpClient.Dispose();
     }
 
     private void ReloadButton_click(object sender, RoutedEventArgs e)
@@ -490,7 +604,8 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
             var commandProperty = vm.GetType().GetProperty("NavigateCommand");
             if (commandProperty != null)
             {
-                if (commandProperty.GetValue(vm) is ICommand navigateCommand && navigateCommand.CanExecute("Organizations"))
+                if (commandProperty.GetValue(vm) is ICommand navigateCommand &&
+                    navigateCommand.CanExecute("Organizations"))
                 {
                     navigateCommand.Execute("Organizations");
                 }

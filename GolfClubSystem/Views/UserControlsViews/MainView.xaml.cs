@@ -1,26 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
+using GolfClubSystem.Services;
 using GolfClubSystem.Views.MainWindows;
 using LiveCharts;
 using LiveCharts.Wpf;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace GolfClubSystem.Views.UserControlsViews;
 
 public partial class MainView : UserControl, INotifyPropertyChanged
 {
-    private readonly UnitOfWork _unitOfWork = new();
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
     public List<Organization> Organizations { get; set; }
 
     public int InTime { get; set; }
@@ -28,131 +29,148 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     public int VeryLate { get; set; }
     public int EarlyLeave { get; set; }
     public int NoWorkers { get; set; }
-    
+
     public string DonutPercent { get; set; }
     public string DonutTrackedCount { get; set; }
     public string DonutNotifyCount { get; set; }
-    
+
     private DateTime? _startDate;
     private DateTime? _endDate;
 
     public MainView()
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+        
         InitializeComponent();
         DataContext = this;
+        
         TodayFilter.Background = new SolidColorBrush(Color.FromRgb(46, 87, 230));
         TodayFilter.Foreground = Brushes.White;
         ApplyTodayFilter();
-        Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        
+
+        LoadOrganizationsAsync();
         Unloaded += WorkersView_Unloaded;
     }
-
-    private void UpdateHistory()
+    
+    private async void LoadOrganizationsAsync()
     {
-        var allHistory = _unitOfWork.HistoryRepository
-            .GetAll(true)
-            .Include(h => h.Worker)
-            .Include(h => h.MarkZone)
-            .AsQueryable();
-
-        var allHistoryNotify = _unitOfWork.NotifyHistoryRepository
-            .GetAll(true)
-            .Include(h => h.Worker)
-            .AsQueryable();
-
-        if (_startDate.HasValue && _endDate.HasValue)
+        _loadingService.StartLoading();
+        try
         {
-            allHistory = allHistory.Where(h => h.ArrivalTime >= _startDate.Value 
-                                               && h.ArrivalTime <= _endDate.Value);
-
-            allHistoryNotify = allHistoryNotify.Where(h => h.ArrivalTime >= _startDate.Value
-                                                           && h.ArrivalTime <= _endDate.Value);
+            var response = await _httpClient.GetAsync("api/Hr/organizations");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+            OrganizationFilter.ItemsSource = Organizations;
+            OnPropertyChanged(nameof(Organizations));
         }
-        
-        // Apply organization filter
-        if (OrganizationFilter.SelectedItem != null)
+        catch (Exception ex)
         {
-            var organization = OrganizationFilter.SelectedItem as Organization;
-            allHistory = allHistory.Where(h => h.Worker.OrganizationId == organization!.Id);
-            allHistoryNotify = allHistoryNotify.Where(h => h.Worker.OrganizationId == organization!.Id);
+            MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        var groupedHistory = allHistory
-            .GroupBy(h => h.MarkZoneId)
-            .ToList();
-
-        var totalEmployees = allHistoryNotify.Count();
-        var trackedCount = allHistoryNotify.Count(w => w.Status == 1);
-        var notifyCount = allHistoryNotify.Count(w => w.Status == 2);
-
-        var percentageMoreOrEqual8Hours = (double)trackedCount / totalEmployees * 100;
-        var percentageLessThan8Hours = (double)notifyCount / totalEmployees * 100;
-        var percent = (int)(percentageMoreOrEqual8Hours + percentageLessThan8Hours) < 0
-            ? 0
-            : (int)(percentageMoreOrEqual8Hours + percentageLessThan8Hours);
-        
-        DonutPercent = $"{percent}%";
-        DonutTrackedCount = trackedCount.ToString();
-        DonutNotifyCount = notifyCount.ToString();
-        
-        // Настройка данных для круговой диаграммы
-        PieChart.Series = new SeriesCollection
+        finally
         {
-            new PieSeries
+            _loadingService.StopLoading();
+        }
+    }
+
+    private async void UpdateHistory()
+    {
+        _loadingService.StartLoading();
+
+        try
+        {
+            var queryParams = new List<string>();
+            
+            if (_startDate.HasValue)
+                queryParams.Add($"startDate={Uri.EscapeDataString(_startDate.Value.ToString("o"))}");
+            if (_endDate.HasValue)
+                queryParams.Add($"endDate={Uri.EscapeDataString(_endDate.Value.ToString("o"))}");
+            if (OrganizationFilter.SelectedItem is Organization org && org.Id != -1)
+                queryParams.Add($"organizationId={org.Id}");
+            
+            var queryString = string.Join("&", queryParams);
+            var response = await _httpClient.GetAsync($"api/Hr/dashboard{(queryString.Length > 0 ? "?" + queryString : "")}");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonConvert.DeserializeObject<DashboardResponse>(json);
+            
+            DonutPercent = data.DonutPercent;
+            DonutTrackedCount = data.DonutTrackedCount;
+            DonutNotifyCount = data.DonutNotifyCount;
+            
+            PieChart.Series =
+            [
+                new PieSeries
+                {
+                    Title = "Отметились",
+                    Values = new ChartValues<double> { data.PieChartData[0].Value },
+                    Fill = new SolidColorBrush(Color.FromRgb(0, 190, 85)),
+                    DataLabels = true
+                },
+
+                new PieSeries
+                {
+                    Title = "Запросов",
+                    Values = new ChartValues<double> { data.PieChartData[1].Value },
+                    Fill = new SolidColorBrush(Color.FromRgb(238, 69, 69)),
+                    DataLabels = true
+                }
+            ];
+            
+            var chartValues = new ChartValues<double>();
+            var labels = new List<string>();
+            
+            foreach (var barData in data.BarChartData)
             {
-                Title = "Отметились",
-                Values = new ChartValues<double> { Math.Round(percentageMoreOrEqual8Hours) },
-                Fill = new SolidColorBrush(Color.FromRgb(0, 190, 85)),
-                DataLabels = true
-            },
-            new PieSeries
-            {
-                Title = "Запросов",
-                Values = new ChartValues<double> { Math.Round(percentageLessThan8Hours) },
-                Fill = new SolidColorBrush(Color.FromRgb(238, 69, 69)),
-                DataLabels = true
+                chartValues.Add(barData.Count);
+                labels.Add(barData.ZoneName);
             }
-        };
-
-        // Настройка данных для столбчатой диаграммы
-        var chartValues = new ChartValues<double>();
-        var labels = new List<string>();
-
-        foreach (var history in groupedHistory)
-        {
-            chartValues.Add(history.Count());
-            labels.Add(history.First().MarkZone?.Name ?? "");
+            
+            BarChart.Series =
+            [
+                new ColumnSeries
+                {
+                    Title = "Количество сотрудников",
+                    Values = chartValues,
+                    Fill = new SolidColorBrush(Color.FromRgb(121, 135, 255))
+                }
+            ];
+            
+            // Установка подписей по осям
+            BarChart.AxisX[0].Labels = labels;
+            BarChart.AxisY[0].LabelFormatter = value => value.ToString("N0", CultureInfo.InvariantCulture);
+            
+            InTime = data.InTime;
+            VeryLate = data.VeryLate;
+            Late = data.Late;
+            EarlyLeave = data.EarlyLeave;
+            NoWorkers = data.NoWorkers;
+            
+            OnPropertyChanged(nameof(DonutPercent));
+            OnPropertyChanged(nameof(DonutTrackedCount));
+            OnPropertyChanged(nameof(DonutNotifyCount));
+            OnPropertyChanged(nameof(PieChart));
+            OnPropertyChanged(nameof(BarChart));
+            OnPropertyChanged(nameof(InTime));
+            OnPropertyChanged(nameof(VeryLate));
+            OnPropertyChanged(nameof(Late));
+            OnPropertyChanged(nameof(EarlyLeave));
+            OnPropertyChanged(nameof(NoWorkers));
         }
-
-        BarChart.Series = new SeriesCollection
+        catch (Exception ex)
         {
-            new ColumnSeries
-            {
-                Title = "Количество сотрудников",
-                Values = chartValues,
-                Fill = new SolidColorBrush(Color.FromRgb(121, 135, 255))
-            }
-        };
-
-        // Установка подписей по осям
-        BarChart.AxisX[0].Labels = labels;
-        BarChart.AxisY[0].LabelFormatter = value => value.ToString("N0", CultureInfo.InvariantCulture);
-
-        InTime = allHistory.Count(h => h.Status == 1);
-        VeryLate = allHistory.Count(h => h.Status == 2);
-        Late = allHistory.Count(h => h.Status == 3);
-        EarlyLeave = allHistory.Count(h => h.Status == 4);
-        NoWorkers = 0;
-
-        OnPropertyChanged(nameof(InTime));
-        OnPropertyChanged(nameof(VeryLate));
-        OnPropertyChanged(nameof(Late));
-        OnPropertyChanged(nameof(EarlyLeave));
-        OnPropertyChanged(nameof(NoWorkers));
-        OnPropertyChanged(nameof(DonutPercent));
-        OnPropertyChanged(nameof(DonutTrackedCount));
-        OnPropertyChanged(nameof(DonutNotifyCount));
+            MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Log.Error("Ошибка в главной: UpdateHistory", ex);
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
     private void FilterButton_Click(object sender, RoutedEventArgs e)
@@ -190,8 +208,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
     private void ApplyTodayFilter()
     {
-         _startDate = DateTime.Today;
-         _endDate = DateTime.Today.AddDays(1);
+        _startDate = DateTime.Today;
+        _endDate = DateTime.Today.AddDays(1);
         UpdateHistory();
     }
 
@@ -208,7 +226,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         _startDate = _endDate.Value.AddMonths(-1).AddDays(-1);
         UpdateHistory();
     }
-    
+
     private void OrganizationFilter_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateHistory();
@@ -237,6 +255,12 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         var window = new SendNotifyWindow();
         window.ShowDialog();
     }
+    
+    private void Export_OnClick(object sender, RoutedEventArgs e)
+    {
+        var window = new ExportWindow();
+        window.ShowDialog();
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -255,7 +279,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
     private void WorkersView_Unloaded(object sender, RoutedEventArgs e)
     {
-        _unitOfWork.Dispose();
+        _httpClient.Dispose();
     }
 
     private void ReloadButton_click(object sender, RoutedEventArgs e)
@@ -272,5 +296,48 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 }
             }
         }
+    }
+    
+    private void RedirectToHistoryOfNotify_click(object sender, RoutedEventArgs e)
+    {
+        var parentWindow = Window.GetWindow(this);
+        if (parentWindow is { DataContext: INotifyPropertyChanged vm })
+        {
+            var commandProperty = vm.GetType().GetProperty("NavigateCommand");
+            if (commandProperty != null)
+            {
+                if (commandProperty.GetValue(vm) is ICommand navigateCommand && navigateCommand.CanExecute("NotifyHistory"))
+                {
+                    navigateCommand.Execute("NotifyHistory");
+                }
+            }
+        }
+    }
+
+    private class DashboardResponse
+    {
+        public string DonutPercent { get; set; }
+        public string DonutTrackedCount { get; set; }
+        public string DonutNotifyCount { get; set; }
+        public PieChartData[] PieChartData { get; set; }
+        public BarChartData[] BarChartData { get; set; }
+        public int InTime { get; set; }
+        public int VeryLate { get; set; }
+        public int Late { get; set; }
+        public int EarlyLeave { get; set; }
+        public int NoWorkers { get; set; }
+    }
+
+    private class PieChartData
+    {
+        public string Title { get; set; }
+        public double Value { get; set; }
+        public string Color { get; set; }
+    }
+
+    private class BarChartData
+    {
+        public int Count { get; set; }
+        public string ZoneName { get; set; }
     }
 }

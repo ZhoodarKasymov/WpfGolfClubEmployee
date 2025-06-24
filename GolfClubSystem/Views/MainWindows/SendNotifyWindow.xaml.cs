@@ -1,12 +1,18 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq.Expressions;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using GolfClubSystem.Data;
+using System.Windows.Documents;
 using GolfClubSystem.Models;
-using Microsoft.EntityFrameworkCore;
+using GolfClubSystem.Services;
+using GolfClubSystem.Views.UserControlsViews;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Expression = System.Linq.Expressions.Expression;
 
 namespace GolfClubSystem.Views.MainWindows
 {
@@ -17,8 +23,11 @@ namespace GolfClubSystem.Views.MainWindows
 
     public partial class SendNotifyWindow : Window, INotifyPropertyChanged
     {
-        private readonly UnitOfWork _unitOfWork = new();
-        public ObservableCollection<Worker> Workers { get; set; } = new();
+        private readonly HttpClient _httpClient;
+        private readonly IConfiguration _configuration;
+        private readonly LoadingService _loadingService;
+        
+        public ObservableCollection<Worker> Workers { get; set; }
         public List<Organization> Organizations { get; set; }
         public List<Zone> Zones { get; set; }
 
@@ -31,7 +40,6 @@ namespace GolfClubSystem.Views.MainWindows
             {
                 _organization = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -44,7 +52,6 @@ namespace GolfClubSystem.Views.MainWindows
             {
                 _zone = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -60,7 +67,6 @@ namespace GolfClubSystem.Views.MainWindows
             {
                 _searchText = value;
                 OnPropertyChanged();
-                FilterItems();
             }
         }
 
@@ -131,54 +137,111 @@ namespace GolfClubSystem.Views.MainWindows
 
         public SendNotifyWindow()
         {
-            InitializeComponent();
-            DataContext = this;
-            Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-            Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        }
-
-        private void FilterItems()
-        {
-            var selectedWorkerIds = Workers.Where(worker => worker.IsSelected).Select(worker => worker.Id).ToList();
-
-            var filteredWorkers = Workers.Where(worker =>
-                (Organization == null || worker.OrganizationId == Organization.Id) &&
-                (Zone == null || worker.ZoneId == Zone.Id)).ToList();
-
-            if (!string.IsNullOrEmpty(SearchText))
-            {
-                filteredWorkers = filteredWorkers
-                    .Where(worker => worker.FullName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            // Reapply the selection to the filtered workers based on the stored selected worker IDs
-            foreach (var worker in filteredWorkers)
-            {
-                worker.IsSelected = selectedWorkerIds.Contains(worker.Id);
-            }
-
-            Workers = new ObservableCollection<Worker>(
-                filteredWorkers
-                    .OrderBy(worker => worker.FullName)
-            );
-
-            OnPropertyChanged(nameof(Workers));
-        }
-
-        private void UpdateWorkers(Expression<Func<Worker, bool>>? predicate = null)
-        {
-            var workers = _unitOfWork.WorkerRepository.GetAll()
-                .Where(w => w.DeletedAt == null)
-                .AsNoTracking();
-
-            if (predicate != null)
-            {
-                workers = workers.Where(predicate);
-            }
+            _configuration = ((App)Application.Current)._configuration;
+            var apiUrl = _configuration.GetSection("ApiUrl").Value
+                         ?? throw new Exception("ApiUrl не прописан в конфигах!");
+            _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+            _loadingService = LoadingService.Instance;
             
-            Workers = new ObservableCollection<Worker>(workers.ToList());
-            OnPropertyChanged(nameof(Workers));
+            InitializeComponent();
+            
+            Loaded += SendNotifyWindow_Loaded;
+        }
+        
+        private async void SendNotifyWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            Loaded -= SendNotifyWindow_Loaded;
+            await InitializeDataAsync();
+        }
+
+        private async Task InitializeDataAsync()
+        {
+            try
+            {
+                await Task.WhenAll(
+                    LoadOrganizationsAsync(),
+                    LoadZonesAsync(),
+                    UpdateWorkers()
+                );
+                
+                DataContext = this;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadOrganizationsAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/Hr/organizations");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+                Organizations = [..organizations];
+                OnPropertyChanged(nameof(Organizations));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Organizations = [];
+            }
+        }
+
+        private async Task LoadZonesAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/Hr/zones");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var zones = JsonConvert.DeserializeObject<List<Zone>>(json) ?? [];
+                Zones = [..zones];
+                OnPropertyChanged(nameof(Zones));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Zones = [];
+            }
+        }
+
+        private async Task UpdateWorkers(int? organizationId = null, int? zoneId = null)
+        {
+            _loadingService.StartLoading();
+            try
+            {
+                var queryParams = new List<string>();
+
+                if (organizationId.HasValue)
+                    queryParams.Add($"organizationId={organizationId.Value}");
+                if (zoneId.HasValue)
+                    queryParams.Add($"zoneId={zoneId.Value}");
+                
+                queryParams.Add("pageNumber=1");
+                queryParams.Add("pageSize=2000");
+                queryParams.Add($"endWorkDate={DateTime.Now.Date:yyyy-MM-dd}");
+
+                var queryString = string.Join("&", queryParams);
+                var response = await _httpClient.GetAsync($"api/Hr/workers-paged?{queryString}");
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<PagedWorkersResponse>(json);
+
+                Workers = new ObservableCollection<Worker>(result?.Workers ?? []);
+                OnPropertyChanged(nameof(Workers));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки сотрудников: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Workers = [];
+            }
+            finally
+            {
+                _loadingService.StopLoading();
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -198,131 +261,131 @@ namespace GolfClubSystem.Views.MainWindows
 
         private async void SendNotification_OnClick(object sender, RoutedEventArgs e)
         {
-            List<Worker> selectedWorkers;
-            List<NotifyHistory> notifyHistory = [];
-            List<NotifyHistory> notifyHistoryExist = [];
-
-            if (SelectedPercent != null)
+            _loadingService.StartLoading();
+            try
             {
-                var totalCountQuery = _unitOfWork.WorkerRepository.GetAll()
-                    .Where(w => w.ChatId != null);
-                        
-                if (Organization != null)
+                var workers = WorkersListBox.SelectedItems.Cast<Worker>().ToList();
+                var notifyRequest = new
                 {
-                    totalCountQuery = totalCountQuery.Where(w => w.OrganizationId == Organization.Id);
+                    Description,
+                    Percent = SelectedPercent?.Value,
+                    WorkerIds = SelectedPercent == null ? workers?.Select(w => w.Id).ToArray() : null,
+                    OrganizationId = Organization?.Id != -1 ? Organization?.Id : null,
+                    ZoneId = Zone?.Id != -1 ? Zone?.Id : null
+                };
+
+                var content = new StringContent(JsonConvert.SerializeObject(notifyRequest), Encoding.UTF8,
+                    "application/json");
+                var response = await _httpClient.PostAsync("api/Hr/notify", content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    MessageBox.Show($"Ошибка отправки уведомления: {errorContent}", "Ошибка", MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    _loadingService.StopLoading();
+                    return;
                 }
 
-                if (Zone != null)
-                {
-                    totalCountQuery = totalCountQuery.Where(w => w.ZoneId == Zone.Id);
-                }
-                        
-                var totalCount = await totalCountQuery.CountAsync();
-                var countToFetch = (int)Math.Ceiling(totalCount * (SelectedPercent.Value / 100m));
-                        
-                selectedWorkers = await totalCountQuery
-                    .OrderBy(w => Guid.NewGuid()) // Randomize selection
-                    .Take(countToFetch)            // Limit to the count
-                    .ToListAsync();
+                Close();
             }
-            else
+            catch (Exception ex)
             {
-                selectedWorkers = Workers.Where(w => w.IsSelected).ToList();
+                MessageBox.Show($"Ошибка отправки уведомления: {ex.Message}", "Ошибка", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
             }
-
-            if (selectedWorkers.Count == 0)
+            finally
             {
-                MessageBox.Show("Работники не найденны!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                _loadingService.StopLoading();
             }
-
-            foreach (var worker in selectedWorkers)
-            {
-                await ((App)Application.Current)._telegramService.SendMessageByUsernameAsync(worker.Id, Description);
-                
-                var existNotifyHistory = await _unitOfWork.NotifyHistoryRepository.GetAll(true)
-                    .FirstOrDefaultAsync(h => h.ArrivalTime.Date == DateTime.Now.Date);
-
-                if (existNotifyHistory != null)
-                {
-                    existNotifyHistory.Status = 2;
-                    existNotifyHistory.ArrivalTime = DateTime.Now;
-                    notifyHistoryExist.Add(existNotifyHistory);
-                }
-                else
-                {
-                    notifyHistory.Add(new NotifyHistory
-                    {
-                        ArrivalTime = DateTime.Now,
-                        WorkerId = worker.Id,
-                        Status = 2
-                    });
-                }
-            }
-
-            if (notifyHistory.Any())
-            {
-                await _unitOfWork.NotifyHistoryRepository.AddRangeAsync(notifyHistory);
-            }
-
-            if (notifyHistoryExist.Any())
-            {
-                await _unitOfWork.NotifyHistoryRepository.UpdateRangeAsync(notifyHistoryExist);
-            }
-            
-            MessageBox.Show("Запрос отправлен", "Успех", MessageBoxButton.OK, MessageBoxImage.None);
-            Close();
         }
 
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            _unitOfWork.Dispose();
+            _httpClient.Dispose();
         }
 
-        private void ComboBox_ZoneChanged(object sender, SelectionChangedEventArgs e)
+        private async void ComboBox_ZoneChanged(object sender, SelectionChangedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             var selectedZone = (Zone?)comboBox?.SelectedItem;
 
-            if (selectedZone != null && Organization != null)
+            if (selectedZone is {Id: not -1} && Organization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == Organization.Id && w.ZoneId == selectedZone.Id);
+               await UpdateWorkers(Organization.Id, selectedZone.Id);
             }
-            else if (Organization != null)
+            else if (Organization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == Organization.Id);
+                await UpdateWorkers(organizationId: Organization.Id);
             }
-            else if (selectedZone != null)
+            else if (selectedZone is {Id: not -1})
             {
-                UpdateWorkers(w => w.ZoneId == selectedZone.Id);
+                await UpdateWorkers(zoneId: selectedZone.Id);
             }
             else
             {
-                UpdateWorkers();
+                await UpdateWorkers();
             }
         }
 
-        private void ComboBox_OrganizationChanged(object sender, SelectionChangedEventArgs e)
+        private async void ComboBox_OrganizationChanged(object sender, SelectionChangedEventArgs e)
         {
             var comboBox = sender as ComboBox;
             var selectedOrganization = (Organization?)comboBox?.SelectedItem;
 
-            if (selectedOrganization != null && Zone != null)
+            if (selectedOrganization is {Id: not -1} && Zone is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == selectedOrganization.Id && w.ZoneId == Zone.Id);
+               await UpdateWorkers(selectedOrganization.Id, Zone.Id);
             }
-            else if (selectedOrganization != null)
+            else if (selectedOrganization is {Id: not -1})
             {
-                UpdateWorkers(w => w.OrganizationId == selectedOrganization.Id);
+                await UpdateWorkers(organizationId: selectedOrganization.Id);
             }
-            else if (Zone != null)
+            else if (Zone is {Id: not -1})
             {
-                UpdateWorkers(w => w.ZoneId == Zone.Id);
+                await UpdateWorkers(zoneId: Zone.Id);
             }
             else
             {
-                UpdateWorkers();
+                await UpdateWorkers();
             }
         }
+    }
+}public class PredicateVisitor : ExpressionVisitor
+{
+    public int? OrganizationId { get; private set; }
+    public int? ZoneId { get; private set; }
+
+    protected override Expression VisitBinary(BinaryExpression node)
+    {
+        if (node.NodeType == ExpressionType.Equal)
+        {
+            if (node.Left is MemberExpression member && node.Right is ConstantExpression constant)
+            {
+                if (member.Member.Name == "OrganizationId")
+                    OrganizationId = (int?)constant.Value;
+                else if (member.Member.Name == "ZoneId")
+                    ZoneId = (int?)constant.Value;
+            }
+        }
+        return base.VisitBinary(node);
+    }
+
+    protected override Expression VisitMethodCall(MethodCallExpression node)
+    {
+        if (node.Method.Name == "op_Equality")
+        {
+            var left = node.Arguments[0] as MemberExpression;
+            var right = node.Arguments[1] as ConstantExpression;
+            if (left != null && right != null)
+            {
+                if (left.Member.Name == "OrganizationId")
+                    OrganizationId = (int?)right.Value;
+                else if (left.Member.Name == "ZoneId")
+                    ZoneId = (int?)right.Value;
+            }
+        }
+        return base.VisitMethodCall(node);
     }
 }

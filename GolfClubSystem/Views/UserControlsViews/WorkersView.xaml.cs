@@ -1,22 +1,35 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
 using GolfClubSystem.Views.WorkersWindow;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace GolfClubSystem.Views.UserControlsViews;
 
+class PagedWorkersResponse
+{
+    public int TotalCount { get; set; }
+    public List<Worker> Workers { get; set; }
+    public int CurrentPage { get; set; }
+    public int PageSize { get; set; }
+}
+
 public partial class WorkersView : UserControl, INotifyPropertyChanged
 {
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
+    
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<Worker> Workers { get; set; }
-    private readonly UnitOfWork _unitOfWork = new();
     public List<Organization> Organizations { get; set; }
     public List<Zone> Zones { get; set; }
 
@@ -51,62 +64,124 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
 
     public WorkersView()
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+        
         InitializeComponent();
         EditCommand = new RelayCommand<Worker>(OnEdit);
         DeleteCommand = new RelayCommand<Worker>(OnDelete);
         ShowCommand = new RelayCommand<Worker>(OnShow);
-        ApplyFilters();
-
-        Organizations = _unitOfWork.OrganizationRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
-        Zones = _unitOfWork.ZoneRepository.GetAll().Where(o => o.DeletedAt == null).ToList();
+        LoadInitialDataAsync();
+        
         DataContext = this;
         Unloaded += WorkersView_Unloaded;
     }
-
-    private void ApplyFilters()
+    
+    private async void LoadInitialDataAsync()
     {
-        var filteredHistories = _unitOfWork.WorkerRepository.GetAll()
-            .Include(w => w.Zone)
-            .Where(w => w.DeletedAt == null)
-            .AsNoTracking();
-
-        // Apply search filter
-        if (!string.IsNullOrEmpty(SearchBox.Text))
+        await LoadOrganizationsAsync();
+        await LoadZonesAsync();
+        ApplyFilters();
+    }
+    
+    private async Task LoadOrganizationsAsync()
+    {
+        _loadingService.StartLoading();
+        try
         {
-            filteredHistories = filteredHistories.Where(w => w.FullName.Contains(SearchBox.Text) 
-                                                             || w.JobTitle.Contains(SearchBox.Text));
+            var response = await _httpClient.GetAsync("api/Hr/organizations");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Organizations = JsonConvert.DeserializeObject<List<Organization>>(json) ?? [];
+            OrganizationFilter.ItemsSource = Organizations;
+            OnPropertyChanged(nameof(Organizations));
         }
-
-        // Apply organization filter
-        if (OrganizationFilter.SelectedItem != null)
+        catch (Exception ex)
         {
-            var organization = OrganizationFilter.SelectedItem as Organization;
-            filteredHistories = filteredHistories.Where(w => w.OrganizationId == organization!.Id);
+            MessageBox.Show($"Ошибка загрузки организаций: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Organizations = [new Organization { Id = -1, Name = "Все" }];
         }
-
-        // Apply status filter
-        if (ZonesFilter.SelectedItem != null)
+        finally
         {
-            var zone = ZonesFilter.SelectedItem as Zone;
-            filteredHistories = filteredHistories.Where(w => w.ZoneId == zone!.Id);
+            _loadingService.StopLoading();
         }
+    }
+
+    private async Task LoadZonesAsync()
+    {
+        _loadingService.StartLoading();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Hr/zones");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            Zones = JsonConvert.DeserializeObject<List<Zone>>(json) ?? [];
+            ZonesFilter.ItemsSource = Zones;
+            OnPropertyChanged(nameof(Zones));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки зон: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Zones = [new Zone { Id = -1, Name = "Все" }];
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
+    }
+
+    private async void ApplyFilters()
+    {
+        _loadingService.StartLoading();
         
-        int totalWorkers = filteredHistories.Count();
+        try
+        {
+            var queryParams = new List<string>();
 
-        // Paginate the results
-        var pagedHistories = filteredHistories
-            .Skip((_currentPage - 1) * PageSize)
-            .Take(PageSize)
-            .ToList();
+            if (!string.IsNullOrEmpty(SearchBox.Text))
+                queryParams.Add($"search={Uri.EscapeDataString(SearchBox.Text)}");
 
-        // Update ObservableCollection
-        Workers = new ObservableCollection<Worker>(pagedHistories);
-        OnPropertyChanged(nameof(Workers));
-        PageNumberText.Text = _currentPage.ToString();
-        
-        // Update button states
-        IsPreviousPageEnabled = _currentPage > 1;
-        IsNextPageEnabled = (_currentPage * PageSize) < totalWorkers; // Disable if no more items
+            if (OrganizationFilter.SelectedItem is Organization org && org.Id != -1)
+                queryParams.Add($"organizationId={org.Id}");
+
+            if (ZonesFilter.SelectedItem is Zone zone && zone.Id != -1)
+                queryParams.Add($"zoneId={zone.Id}");
+            
+            queryParams.Add($"pageNumber={_currentPage}");
+            queryParams.Add($"pageSize={PageSize}");
+
+            var queryString = string.Join("&", queryParams);
+            var response = await _httpClient.GetAsync($"api/Hr/workers-paged?{queryString}");
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"API Error: {response.StatusCode}, Details: {errorContent}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonConvert.DeserializeObject<PagedWorkersResponse>(json);
+
+            Workers = new ObservableCollection<Worker>(data.Workers);
+            IsPreviousPageEnabled = _currentPage > 1;
+            IsNextPageEnabled = (_currentPage * PageSize) < data.TotalCount;
+            PageNumberText.Text = _currentPage.ToString();
+
+            OnPropertyChanged(nameof(Workers));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка загрузки работников: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            Workers = new ObservableCollection<Worker>();
+            OnPropertyChanged(nameof(Workers));
+            Log.Error($"Ошибка загрузки работников: {ex.Message}", ex);
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
     private void PreviousPage_Click(object sender, RoutedEventArgs e)
@@ -146,63 +221,27 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
 
         if (result == MessageBoxResult.Yes)
         {
-            var currentWorker = _unitOfWork.WorkerRepository.GetAll().Include(w => w.Zone)
-                .FirstOrDefault(o => o.Id == worker.Id);
-
-            if (currentWorker is not null)
+            _loadingService.StartLoading();
+            try
             {
-                var zones = _unitOfWork.ZoneRepository.GetAll().Where(z => z.DeletedAt == null).ToList();
-                
-                currentWorker.DeletedAt = DateTime.Now;
-                await _unitOfWork.WorkerRepository.UpdateAsync(currentWorker);
-                ApplyFilters();
-
-                foreach (var zone in zones)
+                // Delete worker via API
+                var deleteResponse = await _httpClient.DeleteAsync($"api/Hr/workers/{worker.Id}");
+                if (!deleteResponse.IsSuccessStatusCode)
                 {
-                    var terminalService = new TerminalService(zone.Login, zone.Password);
-
-                    await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
-                    {
-                        UserInfoDelCond = new UserInfoDelCond
-                        {
-                            EmployeeNoList =
-                            [
-                                new EmployeeNo
-                                {
-                                    EmployeeNoValue = currentWorker.Id.ToString()
-                                }
-                            ]
-                        }
-                    }, zone.EnterIp);
-
-                    await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
-                    {
-                        UserInfoDelCond = new UserInfoDelCond
-                        {
-                            EmployeeNoList =
-                            [
-                                new EmployeeNo
-                                {
-                                    EmployeeNoValue = currentWorker.Id.ToString()
-                                }
-                            ]
-                        }
-                    }, zone.ExitIp);
-                    
-                    await terminalService.DeleteUsersAsync(new UserInfoDeleteRequest
-                    {
-                        UserInfoDelCond = new UserInfoDelCond
-                        {
-                            EmployeeNoList =
-                            [
-                                new EmployeeNo
-                                {
-                                    EmployeeNoValue = currentWorker.Id.ToString()
-                                }
-                            ]
-                        }
-                    }, zone.NotifyIp);
+                    var errorContent = await deleteResponse.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"API Error: {deleteResponse.StatusCode}, Details: {errorContent}");
                 }
+
+                ApplyFilters();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка удаления работника: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                Log.Error($"Ошибка удаления работника: {ex.Message}", ex);
+            }
+            finally
+            {
+                _loadingService.StopLoading();
             }
         }
     }
@@ -221,7 +260,7 @@ public partial class WorkersView : UserControl, INotifyPropertyChanged
 
     private void WorkersView_Unloaded(object sender, RoutedEventArgs e)
     {
-        _unitOfWork.Dispose();
+        _httpClient.Dispose();
     }
 
     private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)

@@ -1,26 +1,37 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using GolfClubSystem.Data;
 using GolfClubSystem.Models;
-using Microsoft.EntityFrameworkCore;
+using GolfClubSystem.Services;
+using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 
 namespace GolfClubSystem.Views.UserControlsViews.AdminControlsViews;
 
 public partial class ZonesView : UserControl, INotifyPropertyChanged
 {
+    private readonly HttpClient _httpClient;
+    private readonly IConfiguration _configuration;
+    private readonly LoadingService _loadingService;
+    
     public event PropertyChangedEventHandler? PropertyChanged;
     public ObservableCollection<Zone> Zones { get; set; }
-    private readonly UnitOfWork _unitOfWork = new();
     
     public ICommand EditCommand { get; }
     public ICommand DeleteCommand { get; }
     
     public ZonesView()
     {
+        _configuration = ((App)Application.Current)._configuration;
+        var apiUrl = _configuration.GetSection("ApiUrl").Value
+                     ?? throw new Exception("ApiUrl не прописан в конфигах!");
+        _httpClient = new HttpClient { BaseAddress = new Uri(apiUrl) };
+        _loadingService = LoadingService.Instance;
+        
         InitializeComponent();
         EditCommand = new RelayCommand<Zone>(OnEdit);
         DeleteCommand = new RelayCommand<Zone>(OnDelete);
@@ -28,14 +39,23 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
         DataContext = this;
     }
 
-    private void UpdateZones()
+    private async void UpdateZones()
     {
-        var zones = _unitOfWork.ZoneRepository.GetAll()
-            .Where(w => w.DeletedAt == null)
-            .AsNoTracking()
-            .ToList();
-        Zones = new ObservableCollection<Zone>(zones);
-        OnPropertyChanged(nameof(Zones));
+        _loadingService.StartLoading();
+        try
+        {
+            var response = await _httpClient.GetAsync("api/Admin/zones");
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            var zones = JsonConvert.DeserializeObject<List<Zone>>(json) ?? [];
+            
+            Zones = new ObservableCollection<Zone>(zones);
+            OnPropertyChanged(nameof(Zones));
+        }
+        finally
+        {
+            _loadingService.StopLoading();
+        }
     }
 
 
@@ -56,16 +76,32 @@ public partial class ZonesView : UserControl, INotifyPropertyChanged
     private async void OnDelete(Zone zone)
     {
         if (zone == null) return;
-        var result = MessageBox.Show($"Вы уверены удалить зону: {zone.Name}?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        
+        var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить зону: {zone.Name}?", "Да", "Нет").ShowDialog();
 
-        if (result == MessageBoxResult.Yes)
+        if (answer.HasValue && answer.Value)
         {
-            var currentZone = _unitOfWork.ZoneRepository.GetAll().FirstOrDefault(o => o.Id == zone.Id);
-            if (currentZone is not null)
+            _loadingService.StartLoading();
+            try
             {
-                currentZone.DeletedAt = DateTime.Now;
-                await _unitOfWork.SaveAsync();
+                var response = await _httpClient.DeleteAsync($"api/Admin/zones/{zone.Id}");
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    new DialogWindow("Ошибка", $"Ошибка удаления зоны: {errorContent}").ShowDialog();
+                    _loadingService.StopLoading();
+                    return;
+                }
+
                 UpdateZones();
+            }
+            catch (Exception ex)
+            {
+                new DialogWindow("Ошибка", $"Ошибка удаления зоны: {ex.Message}").ShowDialog();
+            }
+            finally
+            {
+                _loadingService.StopLoading();
             }
         }
     }

@@ -5,6 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         xmlns:helpers="clr-namespace:GolfClubSystem.Helpers"
+        xmlns:userControlsViews="clr-namespace:GolfClubSystem.Views.UserControlsViews"
         ResizeMode="NoResize"
         mc:Ignorable="d"
         Title="Новый авто запрос" Height="750" Width="600">
@@ -83,25 +84,32 @@
                            Foreground="#8b8494" 
                            Width="480"
                            Visibility="{Binding IsWorkersVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                <ComboBox materialDesign:HintAssist.Hint="Выберите сотрудников"
-                          Width="480"
-                          SelectedValuePath="Id"
-                          IsEditable="True"
-                          Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                          Height="50"
-                          Style="{StaticResource MaterialDesignOutlinedComboBox}"
-                          StaysOpenOnEdit="True"
-                          ItemsSource="{Binding Workers}"
-                          Visibility="{Binding IsWorkersVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" />
-                                <TextBlock Text="{Binding FullName}" Margin="5,0,0,0" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                
+                <Border BorderBrush="{DynamicResource MaterialDesignDivider}"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Width="480"
+                        Height="200"
+                        Visibility="{Binding IsWorkersVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ListBox SelectionMode="Multiple"
+                             x:Name="WorkersListBox"
+                             ItemsSource="{Binding Workers}"
+                             Style="{StaticResource MaterialDesignListBox}"
+                             Visibility="{Binding IsWorkersVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding FullName}" Margin="5,0,0,0" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource MaterialDesignListBoxItem}">
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Border>
                 
                 <TextBox
                     Margin="0 15 0 0"
@@ -126,6 +134,9 @@
                         Height="40"
                         Margin="0,20" />
             </StackPanel>
+            
+            <!-- Глобальный индикатор загрузки -->
+            <userControlsViews:LoadingOverlay Grid.ColumnSpan="2" TabIndex="100" />
         </Grid>
     </ScrollViewer>
 </Window>

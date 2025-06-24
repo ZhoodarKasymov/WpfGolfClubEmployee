@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.Drawing;
 
 namespace GolfClubSystem.Models;
 
@@ -23,19 +24,26 @@ public partial class Employeehistory
     public virtual Zone? MarkZone { get; set; }
 
     public virtual Worker Worker { get; set; } = null!;
+    
+    [NotMapped]
+    public int? LateHours { get; set; }
+    
+    [NotMapped]
+    public int? EarlyHours { get; set; }
+    
+    [NotMapped]
+    public int? NoWorkCount { get; set; }
 
     public string PathByStatus => Status switch
     {
-        1 => "/Images/status_tittle.png",
-        2 => "/Images/Property 1=Cancelled.png",
-        3 => "/Images/Property 1=Default.png",
-        4 => "/Images/Property-1.png",
+        1 => "/Images/prishel.png",
+        2 => "/Images/ne_prishol.png",
+        3 => "/Images/opozdal.png",
+        4 => "/Images/ushel_ranshe.png",
         _ => ""
     };
     
-    public string WorkTimeText => LeaveTime.HasValue
-        ? $"{(int)(LeaveTime.Value - ArrivalTime).TotalHours} часов"
-        : $"{(int)(DateTime.Now - ArrivalTime).TotalHours} часов";
+    public string WorkTimeText => $"{WorkHours} часов";
 
     public string StatusColor => Status switch
     {
