@@ -1,0 +1,36 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Work\\Projects\\GolfClubSystem\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A8C02DA4-8086-44C8-8D00-C24B0973D6BE}|GolfClubSystem\\GolfClubSystem.csproj|c:\\work\\projects\\golfclubsystem\\golfclubsystem\\views\\usercontrolsviews\\organizationsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "RelativeMoniker": "D:0:0:{A8C02DA4-8086-44C8-8D00-C24B0973D6BE}|GolfClubSystem\\GolfClubSystem.csproj|solutionrelative:golfclubsystem\\views\\usercontrolsviews\\organizationsview.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "OrganizationsView.xaml",
+              "DocumentMoniker": "C:\\Work\\Projects\\GolfClubSystem\\GolfClubSystem\\Views\\UserControlsViews\\OrganizationsView.xaml",
+              "RelativeDocumentMoniker": "GolfClubSystem\\Views\\UserControlsViews\\OrganizationsView.xaml",
+              "ToolTip": "C:\\Work\\Projects\\GolfClubSystem\\GolfClubSystem\\Views\\UserControlsViews\\OrganizationsView.xaml",
+              "RelativeToolTip": "GolfClubSystem\\Views\\UserControlsViews\\OrganizationsView.xaml",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
+              "WhenOpened": "2024-12-29T17:25:06.939Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
