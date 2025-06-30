@@ -269,7 +269,7 @@ namespace GolfClubSystem.Views.MainWindows
                 {
                     Description,
                     Percent = SelectedPercent?.Value,
-                    WorkerIds = SelectedPercent == null ? workers?.Select(w => w.Id).ToArray() : null,
+                    WorkerIds = SelectedPercent == null ? workers?.Select(w => w.Id).ToArray() : [],
                     OrganizationId = Organization?.Id != -1 ? Organization?.Id : null,
                     ZoneId = Zone?.Id != -1 ? Zone?.Id : null
                 };

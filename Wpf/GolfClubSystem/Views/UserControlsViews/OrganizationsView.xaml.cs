@@ -440,6 +440,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
         if (hasWorkers)
         {
             new DialogWindow("Ошибка", "Нельзя удалить организацию у организации есть активные рабочие!").ShowDialog();
+            return;
         }
         
         var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить организацию: {node.Name}?", "Да", "Нет").ShowDialog();

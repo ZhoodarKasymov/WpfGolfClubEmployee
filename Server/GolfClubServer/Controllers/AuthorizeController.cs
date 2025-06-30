@@ -15,6 +15,7 @@ public class AuthorizeController : ControllerBase
         _unitOfWork = unitOfWork;
     }
 
+    [HttpGet("get-user-role")]
     public async Task<IActionResult> GetUserRole([FromQuery] string login, [FromQuery] string password)
     {
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
@@ -23,7 +24,7 @@ public class AuthorizeController : ControllerBase
         }
 
         var user = await _unitOfWork.UserRepository
-            .GetAll()
+            .GetAll(true)
             .FirstOrDefaultAsync(u => u.Username == login && u.Password == password);
 
         if (user == null)
@@ -31,6 +32,6 @@ public class AuthorizeController : ControllerBase
             return Unauthorized("Invalid login or password.");
         }
 
-        return Ok(user);
+        return Ok(user.Role);
     }
 }

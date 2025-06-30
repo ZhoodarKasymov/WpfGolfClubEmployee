@@ -48,14 +48,13 @@ public partial class LoginWindow : Window
 
         try
         {
-            var response = await _httpClient.GetAsync($"api/Authorize?login={Uri.EscapeDataString(viewModel.Username)}&password={Uri.EscapeDataString(viewModel.Password)}");
+            var response = await _httpClient.GetAsync($"api/Authorize/get-user-role?login={Uri.EscapeDataString(viewModel.Username)}&password={Uri.EscapeDataString(viewModel.Password)}");
 
             if (response.IsSuccessStatusCode)
             {
-                var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<User>(json);
+                var role = await response.Content.ReadAsStringAsync();
 
-                switch (result?.Role)
+                switch (role)
                 {
                     case "Admin":
                         var adminWindow = new MainAdminWindow();

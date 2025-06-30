@@ -35,10 +35,13 @@ try
             Version = "v1",
             Description = "API for GolfClub System"
         });
-        // Optional: Include XML comments if you have them
-        // var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-        // var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
-        // c.IncludeXmlComments(xmlPath);
+        
+        // Resolve conflicts by ensuring unique operation IDs
+        c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
+        
+        var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        c.IncludeXmlComments(xmlPath);
     });
     
     // Add DbContext
@@ -67,8 +70,21 @@ try
         app.UseDeveloperExceptionPage();
     }
     
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwagger(c =>
+    {
+        c.PreSerializeFilters.Add((swagger, httpReq) =>
+        {
+            swagger.Servers = new List<OpenApiServer>
+            {
+                new OpenApiServer { Url = $"https://{httpReq.Host.Value}" }
+            };
+        });
+    });
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApi v1");
+    });
+    
     app.UseHttpsRedirection();
     app.UseAuthorization();
     app.MapControllers();
