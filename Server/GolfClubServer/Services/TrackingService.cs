@@ -40,16 +40,21 @@ public class TrackingService : BackgroundService
 
                 using var scope = _serviceProvider.CreateScope();
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<UnitOfWork>();
-                var jobs = await unitOfWork.NotifyJobRepository.GetAll()
-                    .Include(j => j.Shift)
-                    .ThenInclude(s => s.Scheduledays)
-                    .Where(n => n.Shift.Scheduledays.Any(sd => sd.DayOfWeek.ToLower() == dayName))
+                var jobs = await unitOfWork.NotifyJobRepository.GetAll(true)
+                    .Include(n => n.Shift)
+                    .ThenInclude(sh => sh!.Scheduledays)
+                    .Where(n => n.Shift != null && n.Shift.Scheduledays.Any(sd => sd.DayOfWeek.ToLower() == dayName))
                     .ToListAsync(token);
 
                 await Task.WhenAll(jobs.Select(job => ProcessJobAsync(job, currentDate, now, token)));
 
                 var timeToNextDay = (currentDate.AddDays(1) - DateTime.Now).TotalMilliseconds;
                 await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(timeToNextDay, 60000)), token);
+            }
+            catch (TaskCanceledException)
+            {
+                // Log as information or ignore, since cancellation is expected during shutdown
+                Log.Information("Background notification task was canceled.");
             }
             catch (Exception ex)
             {

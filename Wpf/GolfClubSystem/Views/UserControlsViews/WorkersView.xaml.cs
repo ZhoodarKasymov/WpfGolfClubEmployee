@@ -8,7 +8,6 @@ using System.Windows.Input;
 using GolfClubSystem.Models;
 using GolfClubSystem.Services;
 using GolfClubSystem.Views.WorkersWindow;
-using MaterialDesignThemes.Wpf;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Serilog;

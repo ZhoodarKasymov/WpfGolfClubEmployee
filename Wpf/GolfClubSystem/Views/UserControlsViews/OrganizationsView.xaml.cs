@@ -198,7 +198,7 @@ public partial class OrganizationsView : UserControl, INotifyPropertyChanged, ID
     private async void OnDelete(Worker worker)
     {
         if (worker == null) return;
-        var answer = new DialogWindow("Подтверждение", "$Вы уверены удалить работника: {worker.FullName}?", "Да", "Нет").ShowDialog();
+        var answer = new DialogWindow("Подтверждение", $"Вы уверены удалить работника: {worker.FullName}?", "Да", "Нет").ShowDialog();
 
         if (answer.HasValue && answer.Value)
         {

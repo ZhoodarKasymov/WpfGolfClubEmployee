@@ -50,7 +50,7 @@ public class AdminController : ControllerBase
     [HttpGet("schedules")]
     public async Task<IActionResult> GetSchedules()
     {
-        var schedules = await _unitOfWork.ScheduleRepository.GetAll()
+        var schedules = await _unitOfWork.ScheduleRepository.GetAll(true)
             .Include(sh => sh.Scheduledays)
             .Include(sh => sh.Holidays)
             .Where(w => w.DeletedAt == null)
